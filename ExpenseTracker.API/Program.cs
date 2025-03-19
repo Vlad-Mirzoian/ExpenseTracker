@@ -20,6 +20,7 @@ app.UseEndpoints(endpoints =>
 {
     endpoints.MapControllers();
 });
+app.MapControllers();
 
 app.UseSwagger();
 app.UseSwaggerUI();
