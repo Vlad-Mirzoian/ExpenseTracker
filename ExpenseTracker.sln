@@ -1,0 +1,48 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35818.85 d17.13
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExpenseTracker.API", "ExpenseTracker.API\ExpenseTracker.API.csproj", "{DAD5152E-8816-4C62-BE34-C083C5F281B4}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GateWay", "GateWay", "{36D591C7-65C7-A0D1-1CBC-10CDE441BDC8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Front", "Front", "{E48FD609-AC55-4174-9D0F-6EE3A4315884}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Back", "Back", "{FBC24D21-FE5A-4439-BF77-B080D5A2BD86}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExpenseTracker.Web", "ExpenseTracker.Web\ExpenseTracker.Web.csproj", "{1CA2C1E4-4B4E-4D98-B329-403CC8D732E5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExpenseTracker.Data", "ExpenseTracker.Data\ExpenseTracker.Data.csproj", "{B7003716-2CB5-4EA0-8F4C-2F2339030D25}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DAD5152E-8816-4C62-BE34-C083C5F281B4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DAD5152E-8816-4C62-BE34-C083C5F281B4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DAD5152E-8816-4C62-BE34-C083C5F281B4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DAD5152E-8816-4C62-BE34-C083C5F281B4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1CA2C1E4-4B4E-4D98-B329-403CC8D732E5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1CA2C1E4-4B4E-4D98-B329-403CC8D732E5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1CA2C1E4-4B4E-4D98-B329-403CC8D732E5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1CA2C1E4-4B4E-4D98-B329-403CC8D732E5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B7003716-2CB5-4EA0-8F4C-2F2339030D25}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B7003716-2CB5-4EA0-8F4C-2F2339030D25}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B7003716-2CB5-4EA0-8F4C-2F2339030D25}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B7003716-2CB5-4EA0-8F4C-2F2339030D25}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{DAD5152E-8816-4C62-BE34-C083C5F281B4} = {36D591C7-65C7-A0D1-1CBC-10CDE441BDC8}
+		{1CA2C1E4-4B4E-4D98-B329-403CC8D732E5} = {E48FD609-AC55-4174-9D0F-6EE3A4315884}
+		{B7003716-2CB5-4EA0-8F4C-2F2339030D25} = {FBC24D21-FE5A-4439-BF77-B080D5A2BD86}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {209D3DA0-AC8F-4657-A37D-F74C7CA66BEE}
+	EndGlobalSection
+EndGlobal
