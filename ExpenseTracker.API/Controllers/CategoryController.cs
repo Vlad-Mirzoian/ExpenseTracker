@@ -48,11 +48,11 @@ public class CategoryController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateCategory(Guid id, [FromForm] Category category)
     {
-        if (id != category.Id)
+        if (id ==Guid.Empty)
         {
             return BadRequest();
         }
-
+        category.Id = id;
         _context.Entry(category).State = EntityState.Modified;
 
         try

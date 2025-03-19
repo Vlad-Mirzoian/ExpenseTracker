@@ -56,11 +56,11 @@ public class TransactionController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateTransaction(Guid id, [FromForm] Transaction transaction)
     {
-        if (id != transaction.Id)
+        if (id == Guid.Empty)
         {
             return BadRequest();
         }
-
+        transaction.Id = id;
         _context.Entry(transaction).State = EntityState.Modified;
 
         try
