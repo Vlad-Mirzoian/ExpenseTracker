@@ -1,15 +1,29 @@
 ﻿using ExpenseTracker.Data.Model;
 using Microsoft.EntityFrameworkCore;
 
-namespace ExpenseTracker.Data
+public class AppDbContext : DbContext
 {
-    public class AppDbContext : DbContext
-    {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+    public DbSet<User> Users { get; set; }
+    public DbSet<Transaction> Transactions { get; set; }
+    public DbSet<Category> Categories { get; set; }
+    public DbSet<MerchantAlias> MerchantAliases { get; set; } // Добавлено
 
-        public DbSet<User> Users { get; set; }
-        public DbSet<Transaction> Transactions { get; set; }
-        public DbSet<Category> Categories { get; set; }
-        public DbSet<MerchantAlias> MerchantAliases { get; set; }
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Category>().HasData(
+            new Category { Id = Guid.Parse("c1b15d7e-0b6f-4d19-9d8c-b0c8722277d0"), Name = "Кофейні", MccCodes = "5814" },
+            new Category { Id = Guid.Parse("b7d45c1b-19b4-4770-bcf4-8c2f5e4d3424"), Name = "Ресторани", MccCodes = "5812" },
+            new Category { Id = Guid.Parse("a25a42f4-88b3-4006-b0c3-2c7a15a358e7"), Name = "Супермаркети", MccCodes = "5411" },
+            new Category { Id = Guid.Parse("ad42b743-ef9a-43e5-b71f-97a742ae1a85"), Name = "Магазини одягу", MccCodes = "5651" },
+            new Category { Id = Guid.Parse("61e1f6c7-7b85-47d1-bb9a-d78f911e8cd3"), Name = "АЗС", MccCodes = "5541" },
+            new Category { Id = Guid.Parse("db60d0b9-89e6-4694-9295-56b688254a2f"), Name = "Банки", MccCodes = "6011" },
+            new Category { Id = Guid.Parse("1a12c08c-f9eb-4f29-8480-ef05137e0cf5"), Name = "Аптеки", MccCodes = "5912" },
+            new Category { Id = Guid.Parse("d177f3d7-d5d2-4d97-bd9e-45f54e2e268f"), Name = "Готелі", MccCodes = "7011" },
+            new Category { Id = Guid.Parse("74d258ea-bf82-4934-bb9a-8a343d9da1ea"), Name = "Кінотеатри", MccCodes = "7832" }
+        );
     }
+
 }

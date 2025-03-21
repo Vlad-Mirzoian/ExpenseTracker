@@ -1,6 +1,4 @@
-﻿using ExpenseTracker.Data;
-using ExpenseTracker.Data.Model;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 [Route("api/[controller]")]
@@ -23,7 +21,7 @@ public class MerchantAliasController : ControllerBase
 
     // Добавить новую привязку
     [HttpPost]
-    public async Task<ActionResult<MerchantAlias>> CreateAlias([FromForm] MerchantAlias alias)
+    public async Task<ActionResult<MerchantAlias>> CreateAlias([FromBody] MerchantAlias alias)
     {
         alias.Id = Guid.NewGuid();
         _context.MerchantAliases.Add(alias);

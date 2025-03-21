@@ -13,7 +13,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpClient<MonobankService>();
-
+builder.Services.AddScoped<TransactionCategorizationService>();
+builder.Services.AddScoped<TransactionService>();
 var app = builder.Build();
 
 app.UseRouting();
