@@ -82,7 +82,7 @@ public class MonobankService
                         transaction.CategoryId = defaultCategory?.Id ?? Guid.Empty;
                     }
 
-                    transactionsToSave.Add(transaction);
+                        transactionsToSave.Add(transaction);
                 }
             }
 
@@ -123,6 +123,6 @@ public class MonobankTransaction
     [JsonPropertyName("time")]
     public long Time { get; set; } // Unix timestamp
 
-    [JsonPropertyName("mcc")]
+    [JsonPropertyName("originalMcc")]
     public int? MccCode { get; set; } // Теперь правильно!
 }

@@ -12,15 +12,13 @@ public class TransactionCategorizationService
 
     public async Task<Guid> CategorizeTransactionAsync(int mccCode)
     {
-        // Проверка на существующие категории, основанные на MCC
-        var category = await _context.Categories
-            .FirstOrDefaultAsync(c => c.MccCodeList.Contains(mccCode));
-
+        var category = _context.Categories
+            .AsEnumerable() // Переключаемся на обработку в памяти (C#)
+            .FirstOrDefault(c => c.MccCodeList.Contains(mccCode));
 
         if (category != null)
             return category.Id;
 
-        // Если категории с таким MCC нет, возвращаем категорию "Інше"
         return DefaultCategoryId;
     }
 }
