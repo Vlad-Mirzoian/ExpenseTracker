@@ -11,8 +11,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ExpenseTracker.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250322213423_updateMccCategory")]
-    partial class updateMccCategory
+    [Migration("20250323163821_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -170,7 +170,7 @@ namespace ExpenseTracker.Data.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("numeric");
 
-                    b.Property<Guid?>("CategoryId")
+                    b.Property<Guid>("CategoryId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("Date")
@@ -203,7 +203,9 @@ namespace ExpenseTracker.Data.Migrations
                 {
                     b.HasOne("Category", "Category")
                         .WithMany()
-                        .HasForeignKey("CategoryId");
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("ExpenseTracker.Data.Model.User", "User")
                         .WithMany()

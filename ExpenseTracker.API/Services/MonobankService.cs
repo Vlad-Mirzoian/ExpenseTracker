@@ -1,19 +1,22 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using ExpenseTracker.API.Interface;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 public class MonobankService
 {
     private readonly HttpClient _httpClient;
-    private readonly AppDbContext _context;
-    private readonly TransactionService _transactionService;
+    private readonly ITransactionRepository _transactionRepository;
+    private readonly ICategoryRepository _categoryRepository;
+    private readonly TransactionCategorizationService _categorizationService;
     private const string BaseUrl = "https://api.monobank.ua";
 
-    public MonobankService(HttpClient httpClient, AppDbContext context, TransactionService transactionService)
+    public MonobankService(HttpClient httpClient, ITransactionRepository transactionRepository, ICategoryRepository categoryRepository, TransactionCategorizationService categorizationService)
     {
         _httpClient = httpClient;
-        _context = context;
-        _transactionService = transactionService;
+        _transactionRepository = transactionRepository;
+        _categoryRepository = categoryRepository;
+        _categorizationService = categorizationService;
     }
 
     public async Task<List<Transaction>> GetTransactionsAsync(Guid id, string token, long fromTimestamp, long toTimestamp)
@@ -49,9 +52,7 @@ public class MonobankService
 
             var transactionDateRange = new DateTimeOffset(fromTimestamp, TimeSpan.Zero).UtcDateTime;
 
-            var existingTransactions = await _context.Transactions
-                .Where(tx => tx.UserId == id && tx.Date >= transactionDateRange)
-                .ToListAsync();
+            var existingTransactions = await _transactionRepository.GetTransactionsByUserAndDateAsync(id, transactionDateRange);
 
             var transactionsToSave = new List<Transaction>();
 
@@ -78,8 +79,13 @@ public class MonobankService
 
                     if (transaction.MccCode == 0)
                     {
-                        var defaultCategory = await _context.Categories.FirstOrDefaultAsync(c => c.Name == "Інше");
+                        var defaultCategory = await _categoryRepository.GetByNameAsync("Інше");
                         transaction.CategoryId = defaultCategory?.Id ?? Guid.Empty;
+                    }
+                    else
+                    {
+                        var defaultCategory = await _categorizationService.CategorizeTransactionAsync(transaction.MccCode.GetValueOrDefault());
+                        transaction.CategoryId = defaultCategory;
                     }
 
                         transactionsToSave.Add(transaction);
@@ -89,10 +95,13 @@ public class MonobankService
             // 5. Сохраняем новые транзакции в БД (если есть)
             if (transactionsToSave.Any())
             {
-                await _context.Transactions.AddRangeAsync(transactionsToSave);
-                await _context.SaveChangesAsync();
+                foreach(var transactiontoSave in transactionsToSave)
+                {
+                    await _transactionRepository.AddAsync(transactiontoSave);
+                }
             }
-
+            Console.WriteLine("Кількість транзакцій", transactionsToSave.Count);
+            Console.WriteLine("Кількість транзакцій в былом", existingTransactions.Count);
             // 6. Возвращаем объединённый список (существующие + новые)
             return existingTransactions.Concat(transactionsToSave).ToList();
         }

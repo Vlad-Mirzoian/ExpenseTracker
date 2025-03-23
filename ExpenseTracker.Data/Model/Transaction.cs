@@ -8,7 +8,7 @@ public class Transaction
     public string Description { get; set; }
     public decimal Amount { get; set; }
 
-    public Guid? CategoryId { get; set; }
+    public Guid CategoryId { get; set; }
     public Category Category { get; set; }
 
     private DateTime _date;

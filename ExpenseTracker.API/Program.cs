@@ -1,3 +1,5 @@
+using ExpenseTracker.API.Interface;
+using ExpenseTracker.API.Repository;
 using ExpenseTracker.Data;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -14,7 +16,9 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpClient<MonobankService>();
 builder.Services.AddScoped<TransactionCategorizationService>();
-builder.Services.AddScoped<TransactionService>();
+builder.Services.AddScoped<ICategoryRepository,CategoryRepository>();
+builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
 var app = builder.Build();
 
 app.UseRouting();

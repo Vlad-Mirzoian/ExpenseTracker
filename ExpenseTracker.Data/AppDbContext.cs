@@ -26,7 +26,8 @@ public class AppDbContext : DbContext
             new Category { Id = Guid.Parse("2AFD336A-03B8-4F17-8CFE-2C0E93CB4C49"), Name = "Знаття/Відправка", MccCodes = "4829" },
             new Category { Id = Guid.Parse("CF668835-71A2-4868-87B8-3938AC9DABF9"), Name = "Комуналка", MccCodes = "4900" },
             new Category { Id = Guid.Parse("86CDEB09-AE28-4A8F-9006-24CE4C44419F"), Name = "Надходження", MccCodes = "6012" },
-            new Category { Id = Guid.Parse("74d258ea-bf82-4934-bb9a-8a343d9da1ea"), Name = "Кінотеатри", MccCodes = "7832" }
+            new Category { Id = Guid.Parse("74d258ea-bf82-4934-bb9a-8a343d9da1ea"), Name = "Кінотеатри", MccCodes = "7832" },
+            new Category { Id = Guid.Parse("66666666-6666-6666-6666-666666666666"), Name = "Інше", MccCodes = "0" }
         );
     }
 

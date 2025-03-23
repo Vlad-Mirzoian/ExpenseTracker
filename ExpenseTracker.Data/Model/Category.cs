@@ -2,7 +2,7 @@
 
 public class Category
 {
-    public Guid Id { get; set; } = new Guid();
+    public Guid Id { get; set; }
     public string Name { get; set; }
     public string MccCodes { get; set; } // Храним MCC как строку (например, "5814,5815")
 

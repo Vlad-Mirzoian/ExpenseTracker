@@ -117,6 +117,12 @@ namespace ExpenseTracker.Data.Migrations
                             Id = new Guid("74d258ea-bf82-4934-bb9a-8a343d9da1ea"),
                             MccCodes = "7832",
                             Name = "Кінотеатри"
+                        },
+                        new
+                        {
+                            Id = new Guid("66666666-6666-6666-6666-666666666666"),
+                            MccCodes = "0",
+                            Name = "Інше"
                         });
                 });
 
@@ -167,7 +173,7 @@ namespace ExpenseTracker.Data.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("numeric");
 
-                    b.Property<Guid?>("CategoryId")
+                    b.Property<Guid>("CategoryId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("Date")
@@ -200,7 +206,9 @@ namespace ExpenseTracker.Data.Migrations
                 {
                     b.HasOne("Category", "Category")
                         .WithMany()
-                        .HasForeignKey("CategoryId");
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("ExpenseTracker.Data.Model.User", "User")
                         .WithMany()

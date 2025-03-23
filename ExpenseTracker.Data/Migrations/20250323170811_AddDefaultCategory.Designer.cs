@@ -11,8 +11,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ExpenseTracker.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250321214215_UpdateMccCodeInCategory")]
-    partial class UpdateMccCodeInCategory
+    [Migration("20250323170811_AddDefaultCategory")]
+    partial class AddDefaultCategory
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -58,7 +58,7 @@ namespace ExpenseTracker.Data.Migrations
                         new
                         {
                             Id = new Guid("a25a42f4-88b3-4006-b0c3-2c7a15a358e7"),
-                            MccCodes = "5411",
+                            MccCodes = "5411,5499",
                             Name = "Супермаркети"
                         },
                         new
@@ -93,9 +93,39 @@ namespace ExpenseTracker.Data.Migrations
                         },
                         new
                         {
+                            Id = new Guid("b50ee9f0-3480-40d8-bb48-e15bf9e2fc03"),
+                            MccCodes = "5811,8999",
+                            Name = "Доставка"
+                        },
+                        new
+                        {
+                            Id = new Guid("2afd336a-03b8-4f17-8cfe-2c0e93cb4c49"),
+                            MccCodes = "4829",
+                            Name = "Знаття/Відправка"
+                        },
+                        new
+                        {
+                            Id = new Guid("cf668835-71a2-4868-87b8-3938ac9dabf9"),
+                            MccCodes = "4900",
+                            Name = "Комуналка"
+                        },
+                        new
+                        {
+                            Id = new Guid("86cdeb09-ae28-4a8f-9006-24ce4c44419f"),
+                            MccCodes = "6012",
+                            Name = "Надходження"
+                        },
+                        new
+                        {
                             Id = new Guid("74d258ea-bf82-4934-bb9a-8a343d9da1ea"),
                             MccCodes = "7832",
                             Name = "Кінотеатри"
+                        },
+                        new
+                        {
+                            Id = new Guid("66666666-6666-6666-6666-666666666666"),
+                            MccCodes = "0",
+                            Name = "Інше"
                         });
                 });
 
@@ -146,7 +176,7 @@ namespace ExpenseTracker.Data.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("numeric");
 
-                    b.Property<Guid?>("CategoryId")
+                    b.Property<Guid>("CategoryId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("Date")
@@ -179,7 +209,9 @@ namespace ExpenseTracker.Data.Migrations
                 {
                     b.HasOne("Category", "Category")
                         .WithMany()
-                        .HasForeignKey("CategoryId");
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("ExpenseTracker.Data.Model.User", "User")
                         .WithMany()

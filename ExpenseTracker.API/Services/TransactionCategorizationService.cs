@@ -1,20 +1,19 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using ExpenseTracker.API.Interface;
+using Microsoft.EntityFrameworkCore;
 
 public class TransactionCategorizationService
 {
-    private readonly AppDbContext _context;
+    private readonly ICategoryRepository _categoryRepository;
     private readonly Guid DefaultCategoryId = Guid.Parse("66666666-6666-6666-6666-666666666666"); // "Інше"
 
-    public TransactionCategorizationService(AppDbContext context)
+    public TransactionCategorizationService(ICategoryRepository categoryRepository)
     {
-        _context = context;
+        _categoryRepository = categoryRepository;
     }
 
     public async Task<Guid> CategorizeTransactionAsync(int mccCode)
     {
-        var category = _context.Categories
-            .AsEnumerable() // Переключаемся на обработку в памяти (C#)
-            .FirstOrDefault(c => c.MccCodeList.Contains(mccCode));
+        var category = _categoryRepository.GetByMccCode(mccCode);
 
         if (category != null)
             return category.Id;

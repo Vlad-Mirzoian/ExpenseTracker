@@ -1,20 +1,21 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using ExpenseTracker.API.Interface;
+using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 
 [Route("api/[controller]")]
 [ApiController]
 public class MonobankController : ControllerBase
 {
-    private readonly AppDbContext _context;
     private readonly MonobankService _monobankService;
-    private readonly TransactionService _transactionService;
+    private readonly IUserRepository _userRepository;
+    private readonly ITransactionRepository _transactionRepository;
     private readonly TransactionCategorizationService _categorizationService;
 
-    public MonobankController(AppDbContext context, MonobankService monobankService, TransactionService transactionService, TransactionCategorizationService categorizationService)
+    public MonobankController(IUserRepository userRepository, ITransactionRepository transactionRepository, MonobankService monobankService, TransactionCategorizationService categorizationService)
     {
-        _context = context;
+        _userRepository = userRepository;
+        _transactionRepository = transactionRepository;
         _monobankService = monobankService;
-        _transactionService = transactionService;
         _categorizationService = categorizationService;
     }
 
@@ -23,7 +24,7 @@ public class MonobankController : ControllerBase
     {
         try
         {
-            var user = await _context.Users.FindAsync(userId);
+            var user = await _userRepository.GetByIdAsync(userId);
             if (user == null)
             {
                 return NotFound("Пользователь не найден.");
@@ -43,10 +44,10 @@ public class MonobankController : ControllerBase
             // Классифицируем транзакции по MCC коду
             foreach (var transaction in transactions)
             {
-                transaction.CategoryId = await _categorizationService.CategorizeTransactionAsync(transaction.MccCode.GetValueOrDefault());
+                /*transaction.CategoryId = await _categorizationService.CategorizeTransactionAsync(transaction.MccCode.GetValueOrDefault());
+                await _transactionRepository.UpdateAsync(transaction);*/
                 Console.WriteLine($"Transaction ID: {transaction.Id}, MCC: {transaction.MccCode}");
             }
-
             return Ok(transactions);
         }
         catch (Exception ex)
