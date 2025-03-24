@@ -1,17 +1,20 @@
-﻿using ExpenseTracker.Data;
+﻿using ExpenseTracker.API.Interface;
+using ExpenseTracker.Data;
 using ExpenseTracker.Data.Model;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-
 [Route("api/[controller]")]
 [ApiController]
 public class TransactionController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly ITransactionRepository _transactionRepository;
 
-    public TransactionController(AppDbContext context)
+    public TransactionController(AppDbContext context, ITransactionRepository transactionRepository)
     {
         _context = context;
+        _transactionRepository = transactionRepository;
     }
 
     // Получить все транзакции
@@ -40,7 +43,18 @@ public class TransactionController : ControllerBase
 
         return transaction;
     }
+    [HttpGet("category/{categoryId}")]
+    public async Task<ActionResult<List<Transaction>>> GetTransactionByCategory(Guid categoryId)
+    {
+        var transaction = await _transactionRepository.GetTransactionsByCategoriesAsync(categoryId);
 
+        if (transaction == null)
+        {
+            return NotFound();
+        }
+
+        return transaction;
+    }
     // Добавить новую транзакцию
     [HttpPost]
     public async Task<ActionResult<Transaction>> CreateTransaction([FromForm]Transaction transaction)

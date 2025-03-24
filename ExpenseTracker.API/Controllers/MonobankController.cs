@@ -1,7 +1,7 @@
 ﻿using ExpenseTracker.API.Interface;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
-
 [Route("api/[controller]")]
 [ApiController]
 public class MonobankController : ControllerBase
@@ -34,20 +34,11 @@ public class MonobankController : ControllerBase
                 return BadRequest("У пользователя отсутствует API-ключ Monobank.");
             }
 
-            Console.WriteLine($"Используем API-ключ: {user.Token}");
             var now = DateTimeOffset.UtcNow;
-            var fromTimestamp = now.AddDays(-30).ToUnixTimeSeconds(); // Транзакции за последний месяц
+            var fromTimestamp = now.AddDays(-30).ToUnixTimeSeconds();
             var toTimestamp = now.ToUnixTimeSeconds();
 
             var transactions = await _monobankService.GetTransactionsAsync(user.Id, user.Token, fromTimestamp, toTimestamp);
-            Console.WriteLine($"Ответ Monobank: {JsonConvert.SerializeObject(transactions, Formatting.Indented)}");
-            // Классифицируем транзакции по MCC коду
-            foreach (var transaction in transactions)
-            {
-                /*transaction.CategoryId = await _categorizationService.CategorizeTransactionAsync(transaction.MccCode.GetValueOrDefault());
-                await _transactionRepository.UpdateAsync(transaction);*/
-                Console.WriteLine($"Transaction ID: {transaction.Id}, MCC: {transaction.MccCode}");
-            }
             return Ok(transactions);
         }
         catch (Exception ex)

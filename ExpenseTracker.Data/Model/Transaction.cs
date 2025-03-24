@@ -12,7 +12,6 @@ public class Transaction
     public Category Category { get; set; }
 
     private DateTime _date;
-    public string MerchantName { get; set; } ="Інше";
     public DateTime Date
     {
         get => _date;

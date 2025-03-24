@@ -1,89 +1,128 @@
-﻿using ExpenseTracker.Data;
+﻿using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using ExpenseTracker.Data;
 using ExpenseTracker.Data.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using BCrypt.Net;
+using ExpenseTracker.API.Interface;
+using Org.BouncyCastle.Crypto.Generators;
 
-[Route("api/[controller]")]
+[Route("api/auth")]
 [ApiController]
 public class UserController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly IUserRepository _userRepository;
+    private readonly IConfiguration _config;
 
-    public UserController(AppDbContext context)
+    public UserController(IUserRepository userRepository, IConfiguration config)
     {
-        _context = context;
+        _userRepository = userRepository;
+        _config = config;
+    }
+    public class RegisterRequest
+    {
+        public string Login { get; set; }
+        public string Password { get; set; }
+        public string Token { get; set; }
+    }
+    public class LoginRequest
+    {
+        public string Login { get; set; }
+        public string Password { get; set; }
+    }
+    // Регистрация пользователя
+    [HttpPost("register")]
+    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+    {
+        var existingUser = await _userRepository.GetUserByLoginAsync(request.Login);
+        if (existingUser != null)
+        {
+            return BadRequest(new { message = "Користувач із таким логіном вже існує" });
+        }
+
+        // Хешируем пароль перед сохранением
+        var newUser = new User
+        {
+            Login = request.Login,
+            Token = request.Token,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password)
+        };
+
+        await _userRepository.AddAsync(newUser);
+
+        return Ok(new { message = "Користувач зареєстрований успішно!" });
     }
 
-    // Получить всех пользователей
-    [HttpGet]
-    public async Task<ActionResult<IEnumerable<User>>> GetUsers()
+    // Авторизация пользователя
+    [HttpPost("login")]
+    public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        return await _context.Users.ToListAsync();
-    }
+        var existingUser = await _userRepository.GetUserByLoginAsync(request.Login);
 
-    // Получить одного пользователя по ID
-    [HttpGet("{id}")]
-    public async Task<ActionResult<User>> GetUser(Guid id)
+        if (existingUser == null || !BCrypt.Net.BCrypt.Verify(request.Password, existingUser.PasswordHash))
+        {
+            return Unauthorized(new { message = "Невірний логін або пароль" });
+        }
+
+        var token = GenerateJwtToken(existingUser);
+        return Ok(new { token });
+    }
+    // Генерация JWT
+    private string GenerateJwtToken(User user)
     {
-        var user = await _context.Users.FindAsync(id);
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Name, user.Login)
+        };
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:SecretKey"])); // SecretKey из конфигурации
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            issuer: _config["Jwt:Issuer"],
+            audience: _config["Jwt:Audience"],
+            claims: claims,
+            expires: DateTime.Now.AddDays(1), // Токен будет действовать 1 день
+            signingCredentials: credentials
+        );
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+    [HttpGet("me")]
+    public async Task<IActionResult> GetCurrentUser()
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (userId == null)
+        {
+            return Unauthorized(new { message = "Користувач не авторизований" });
+        }
+
+        var user = await _userRepository.GetByIdAsync(Guid.Parse(userId));
+
         if (user == null)
         {
-            return NotFound();
+            return NotFound(new { message = "Користувача не знайдено" });
         }
-        return user;
+
+        return Ok(new
+        {
+            user.Id,
+            user.Login,
+            user.Token
+            // Додайте інші необхідні поля
+        });
     }
 
-    // Добавить нового пользователя
-    [HttpPost]
-    public async Task<ActionResult<User>> CreateUser([FromForm] User user)
+    // Выход (просто на клиенте удаляем токен)
+    [HttpPost("logout")]
+    public IActionResult Logout()
     {
-        user.Id = Guid.NewGuid();
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
-
-        return CreatedAtAction(nameof(GetUser), new { id = user.Id }, user);
-    }
-
-    // Обновить пользователя
-    [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateUser(Guid id, [FromForm] User user)
-    {
-        if (id == Guid.Empty)
-        {
-            return BadRequest();
-        }
-        user.Id = id;
-        _context.Entry(user).State = EntityState.Modified;
-
-        try
-        {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!_context.Users.Any(e => e.Id == id))
-            {
-                return NotFound();
-            }
-            throw;
-        }
-
-        return NoContent();
-    }
-
-    // Удалить пользователя
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteUser(Guid id)
-    {
-        var user = await _context.Users.FindAsync(id);
-        if (user == null)
-        {
-            return NotFound();
-        }
-
-        _context.Users.Remove(user);
-        await _context.SaveChangesAsync();
-
-        return NoContent();
+        // Тут ничего не сохраняем, токен просто удаляется на клиенте
+        return Ok(new { message = "Выход выполнен успешно" });
     }
 }

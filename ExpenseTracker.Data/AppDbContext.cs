@@ -6,7 +6,6 @@ public class AppDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<Transaction> Transactions { get; set; }
     public DbSet<Category> Categories { get; set; }
-    public DbSet<MerchantAlias> MerchantAliases { get; set; } // Добавлено
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -14,8 +13,7 @@ public class AppDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.Entity<Category>().HasData(
-            new Category { Id = Guid.Parse("c1b15d7e-0b6f-4d19-9d8c-b0c8722277d0"), Name = "Кофейні", MccCodes = "5814" },
-            new Category { Id = Guid.Parse("b7d45c1b-19b4-4770-bcf4-8c2f5e4d3424"), Name = "Ресторани", MccCodes = "5812" },
+            new Category { Id = Guid.Parse("c1b15d7e-0b6f-4d19-9d8c-b0c8722277d0"), Name = "Кафе/ресторани", MccCodes = "5814,5812,5462" },
             new Category { Id = Guid.Parse("a25a42f4-88b3-4006-b0c3-2c7a15a358e7"), Name = "Супермаркети", MccCodes = "5411,5499" },
             new Category { Id = Guid.Parse("ad42b743-ef9a-43e5-b71f-97a742ae1a85"), Name = "Магазини одягу", MccCodes = "5651" },
             new Category { Id = Guid.Parse("61e1f6c7-7b85-47d1-bb9a-d78f911e8cd3"), Name = "АЗС", MccCodes = "5541" },

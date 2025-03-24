@@ -1,17 +1,20 @@
-﻿using ExpenseTracker.Data;
+﻿using ExpenseTracker.API.Interface;
+using ExpenseTracker.Data;
 using ExpenseTracker.Data.Model;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-
 [Route("api/[controller]")]
 [ApiController]
 public class CategoryController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly ITransactionRepository _transactionRepository;
 
-    public CategoryController(AppDbContext context)
+    public CategoryController(AppDbContext context, ITransactionRepository transactionRepository)
     {
         _context = context;
+        _transactionRepository = transactionRepository;
     }
 
     // Получить все категории
@@ -32,7 +35,6 @@ public class CategoryController : ControllerBase
         }
         return category;
     }
-
     // Добавить категорию
     [HttpPost]
     public async Task<ActionResult<Category>> CreateCategory([FromForm]Category category)

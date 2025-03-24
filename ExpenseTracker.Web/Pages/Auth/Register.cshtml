@@ -1,0 +1,117 @@
+﻿@page
+@model ExpenseTracker.Web.Pages.Auth.RegisterModel
+@{
+    ViewData["Title"] = "Реєстрація";
+}
+
+<style>
+    body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: url('background-image.jpg') no-repeat center center fixed;
+        background-size: cover;
+        font-family: Arial, sans-serif;
+    }
+
+    .register-container {
+        background-color: rgba(255, 255, 255, 0.9);
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        width: 300px;
+        text-align: center;
+    }
+
+        .register-container h2 {
+            margin-bottom: 20px;
+        }
+
+        .register-container label {
+            display: block;
+            margin-top: 10px;
+            text-align: left;
+        }
+
+        .register-container input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .register-container button {
+            width: 100%;
+            padding: 10px;
+            background-color: #28a745;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+            .register-container button:hover {
+                background-color: #218838;
+            }
+
+        .register-container a {
+            display: block;
+            margin-top: 15px;
+            color: #007bff;
+            text-decoration: none;
+        }
+
+            .register-container a:hover {
+                text-decoration: underline;
+            }
+
+        .register-container p {
+            color: red;
+        }
+
+    .token-info {
+        font-size: 12px;
+        color: #6c757d;
+        text-align: left;
+    }
+
+        .token-info a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+            .token-info a:hover {
+                text-decoration: underline;
+            }
+</style>
+
+<div class="register-container">
+    <h2>Реєстрація</h2>
+    <form method="post">
+        @Html.AntiForgeryToken()
+        <label for="Login">Логін</label>
+        <input type="text" id="Login" name="Login" value="@Model.Login" required />
+
+        <label for="Password">Пароль</label>
+        <input type="password" id="Password" name="Password" value="@Model.Password" required />
+
+        <label for="Token">Токен</label>
+        <input type="text" id="Token" name="Token" value="@Model.Token" required />
+        <div class="token-info">
+            <a href="https://api.monobank.ua/docs/index.html#tag/Kliyentski-personalni-dani/paths/~1personal~1client-info/get" target="_blank">Як його дізнатися?</a>
+        </div>
+
+        <button type="submit">Зареєструватися</button>
+    </form>
+    <a href="/Auth/Login">Вже є акаунт? Увійти</a>
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <p>@Model.ErrorMessage</p>
+    }
+</div>

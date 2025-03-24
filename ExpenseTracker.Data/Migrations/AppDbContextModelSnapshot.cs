@@ -43,14 +43,8 @@ namespace ExpenseTracker.Data.Migrations
                         new
                         {
                             Id = new Guid("c1b15d7e-0b6f-4d19-9d8c-b0c8722277d0"),
-                            MccCodes = "5814",
-                            Name = "Кофейні"
-                        },
-                        new
-                        {
-                            Id = new Guid("b7d45c1b-19b4-4770-bcf4-8c2f5e4d3424"),
-                            MccCodes = "5812",
-                            Name = "Ресторани"
+                            MccCodes = "5814,5812,5462",
+                            Name = "Кафе/ресторани"
                         },
                         new
                         {
@@ -132,7 +126,11 @@ namespace ExpenseTracker.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Name")
+                    b.Property<string>("Login")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -143,25 +141,6 @@ namespace ExpenseTracker.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
-                });
-
-            modelBuilder.Entity("MerchantAlias", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("NormalizedName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("OriginalName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("MerchantAliases");
                 });
 
             modelBuilder.Entity("Transaction", b =>
@@ -185,10 +164,6 @@ namespace ExpenseTracker.Data.Migrations
 
                     b.Property<int?>("MccCode")
                         .HasColumnType("integer");
-
-                    b.Property<string>("MerchantName")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");

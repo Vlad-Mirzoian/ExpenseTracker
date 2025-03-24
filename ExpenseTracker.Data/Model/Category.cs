@@ -12,5 +12,4 @@ public class Category
         get => MccCodes?.Split(',').Select(int.Parse).ToList() ?? new List<int>();
         set => MccCodes = string.Join(",", value);
     }
-
 }
