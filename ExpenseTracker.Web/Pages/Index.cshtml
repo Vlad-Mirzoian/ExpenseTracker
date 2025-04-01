@@ -51,6 +51,9 @@
         }
 
             .categories li {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
                 margin-bottom: 15px;
             }
 
@@ -69,6 +72,15 @@
                 .categories button:hover {
                     background-color: #45a049;
                 }
+
+        .edit-btn {
+            background-color: #007bff;
+            width: 100%;
+        }
+
+            .edit-btn:hover {
+                background-color: #0056b3;
+            }
 
         .content {
             flex-grow: 1;
@@ -99,8 +111,43 @@
             max-width: 600px;
             margin: 0 auto;
         }
+
+        .category-buttons {
+            display: flex;
+            width: 100%;
+            gap: 10px;
+        }
+
+        .edit-btn, .category-btn {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        .edit-btn {
+            background-color: #007bff;
+            color: white;
+        }
+
+            .edit-btn:hover {
+                background-color: #0056b3;
+            }
+
+        .category-btn {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+            .category-btn:hover {
+                background-color: #45a049;
+            }
+
     </style>
-    <!-- Подключаем Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -116,20 +163,24 @@
             </div>
 
             <h2>Категорії</h2>
+
+            <!-- Переносим кнопку сразу после названия -->
+            <form method="get" action="/Index">
+                <button type="submit" class="category-btn">Усі</button>
+            </form>
             <ul class="categories">
                 @foreach (var category in Model.Categories)
                 {
                     <li>
-                        @Html.AntiForgeryToken()
-                        <form method="get" action="/Index">
-                            <input type="hidden" name="id" value="@category.Id" />
-                            <button type="submit">@category.Name</button>
-                        </form>
+                        <div class="category-buttons">
+                            <a href="@Url.Page("/EditCategory", new { id = category.Id })" class="edit-btn">✏️</a>
+                            <form method="get" action="/Index" class="category-form">
+                                <input type="hidden" name="id" value="@category.Id" />
+                                <button type="submit" class="category-btn">@category.Name</button>
+                            </form>
+                        </div>
                     </li>
                 }
-                <form method="get" action="/Index">
-                    <button type="submit">Усі</button>
-                </form>
             </ul>
         </div>
 
@@ -155,41 +206,54 @@
         </div>
     </div>
 
-    <script>
-        // Получаем данные категорий и сумм для диаграммы
-        var categories = @Json.Serialize(Model.Categories.Select(c => c.Name));
-        var categoryTotals = @Json.Serialize(Model.Categories.Select(c => Model.Transactions
-            .Where(t => t.CategoryId == c.Id)
-            .Sum(t => t.Amount)));
+    @{
+        var selectedCategoryId = Request.Query.ContainsKey("id") ? Request.Query["id"].ToString() : null;
+        var filteredTransactions = string.IsNullOrEmpty(selectedCategoryId)
+        ? Model.Transactions
+        : Model.Transactions.Where(t => t.CategoryId.ToString() == selectedCategoryId).ToList();
 
-        // Настройки диаграммы
-        var ctx = document.getElementById('expenseChart').getContext('2d');
-        var expenseChart = new Chart(ctx, {
-            type: 'pie',
-            data: {
-                labels: categories,
-                datasets: [{
-                    label: 'Витрати по категоріях',
-                    data: categoryTotals,
-                    backgroundColor: ['#ff6384', '#36a2eb', '#cc65fe', '#ffce56', '#4bc0c0', '#f45b69'],
-                    hoverOffset: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(tooltipItem) {
-                                return tooltipItem.label + ': ' + tooltipItem.raw + ' грн';
+        // Группируем транзакции внутри выбранной категории
+        var transactionData = filteredTransactions
+        .GroupBy(t => t.Description) // Используем описание транзакции как подписи
+        .Select(g => new
+        {
+            Label = g.Key,
+            TotalAmount = g.Sum(t => t.Amount)
+        })
+        .ToList();
+    }
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            var labels = @Html.Raw(Json.Serialize(transactionData.Select(t => t.Label)));
+            var amounts = @Html.Raw(Json.Serialize(transactionData.Select(t => t.TotalAmount)));
+
+            var ctx = document.getElementById('expenseChart').getContext('2d');
+            var expenseChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Транзакції в категорії',
+                        data: amounts,
+                        backgroundColor: ['#ff6384', '#36a2eb', '#cc65fe', '#ffce56', '#4bc0c0', '#f45b69'],
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: function (tooltipItem) {
+                                    return tooltipItem.label + ': ' + tooltipItem.raw + ' грн';
+                                }
                             }
                         }
                     }
                 }
-            }
+            });
         });
     </script>
 </body>

@@ -46,16 +46,36 @@ public class CategoryController : ControllerBase
         return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
     }
 
-    // Обновить категорию
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateCategory(Guid id, [FromForm] Category category)
+    public async Task<IActionResult> UpdateCategory(Guid id, Category category)
     {
-        if (id ==Guid.Empty)
+        if (id != category.Id)
         {
-            return BadRequest();
+            return BadRequest("ID mismatch");
         }
-        category.Id = id;
-        _context.Entry(category).State = EntityState.Modified;
+
+        if (string.IsNullOrEmpty(category.Name))
+        {
+            return BadRequest("Name is required.");
+        }
+        var existingCategory = await _context.Categories.FindAsync(id);
+        if (existingCategory == null)
+        {
+            return NotFound();
+        }
+
+        // Обновляем имя категории
+        existingCategory.Name = category.Name;
+
+        // Получаем коды MCC из связанных транзакций
+        var mccCodes = await _context.Transactions
+            .Where(t => t.CategoryId == id && t.MccCode.HasValue)
+            .Select(t => t.MccCode.Value)
+            .ToListAsync();
+
+        // Преобразуем List<int> в массив int[]
+        existingCategory.MccCodes = mccCodes.Any() ? mccCodes.ToArray() : Array.Empty<int>();
+
 
         try
         {

@@ -92,7 +92,22 @@ public class TransactionController : ControllerBase
 
         return NoContent();
     }
+    //Обновить транзакцию
+    [HttpPost("update-category")]
+    public async Task<IActionResult> UpdateTransactionCategories([FromBody] UpdateTransactionCategoryRequest request)
+    {
+        var transactions = await _context.Transactions
+                                         .Where(t => request.TransactionIds.Contains(t.Id))
+                                         .ToListAsync();
 
+        foreach (var transaction in transactions)
+        {
+            transaction.CategoryId = request.CategoryId;
+        }
+
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
     // Удалить транзакцию
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteTransaction(Guid id)
@@ -108,4 +123,10 @@ public class TransactionController : ControllerBase
 
         return NoContent();
     }
+}
+
+public class UpdateTransactionCategoryRequest
+{
+    public Guid CategoryId { get; set; }
+    public List<Guid> TransactionIds { get; set; }
 }

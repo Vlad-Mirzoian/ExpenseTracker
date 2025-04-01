@@ -17,15 +17,13 @@ builder.Services.AddHttpClient("ExpenseTrackerApi", client =>
 {
     client.BaseAddress = new Uri("https://localhost:7151/");
 });
-
+// Загружаем конфигурацию из appsettings.json
+builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+builder.Configuration.AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true);
 // Добавляем зависимости
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
-// Загружаем конфигурацию из appsettings.json
-builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-builder.Configuration.AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true);
-
 var jwtSecretKey = builder.Configuration["Jwt:SecretKey"];
 if (string.IsNullOrEmpty(jwtSecretKey))
 {

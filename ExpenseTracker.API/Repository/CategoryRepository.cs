@@ -13,7 +13,7 @@ namespace ExpenseTracker.API.Repository
         {
             return _context.Categories
             .AsEnumerable() // Переключаемся на обработку в памяти
-            .FirstOrDefault(c => c.MccCodeList.Contains(mccCode));
+            .FirstOrDefault(c => c.MccCodes.Contains(mccCode));
         }
 
     }

@@ -26,7 +26,6 @@ namespace ExpenseTracker.Web.Pages
         public async Task<IActionResult> OnGetAsync(Guid? id)
         {
             var token = Request.Cookies["jwt"];
-
             if (string.IsNullOrEmpty(token))
             {
                 return RedirectToPage("/Auth/Login");
@@ -38,7 +37,6 @@ namespace ExpenseTracker.Web.Pages
             // Получаем информацию о пользователе
             var responseUser = await client.GetAsync("api/auth/me");
             if (responseUser.IsSuccessStatusCode)
-            
             {
                 UserInformation = await responseUser.Content.ReadFromJsonAsync<User>();
             }
@@ -54,32 +52,23 @@ namespace ExpenseTracker.Web.Pages
                 Categories = await responseCategories.Content.ReadFromJsonAsync<List<Category>>();
             }
 
-            // Если передана категория, загружаем транзакции по этой категории
+            // Загружаем транзакции для выбранной категории или все транзакции
             if (id.HasValue)
             {
-                Console.WriteLine($"Fetching transactions for categoryId: {id.Value}");
                 var response = await client.GetAsync($"api/transaction/category/{id.Value}");
-
                 if (response.IsSuccessStatusCode)
                 {
                     Transactions = await response.Content.ReadFromJsonAsync<List<Transaction>>();
                 }
-                else
-                {
-                    Console.WriteLine("Error fetching transactions by category");
-                }
             }
             else
             {
-                // Загружаем все транзакции пользователя, если категория не выбрана
                 var responseTransactions = await client.GetAsync($"api/monobank/transactions/{UserInformation.Id}");
                 if (responseTransactions.IsSuccessStatusCode)
                 {
                     Transactions = await responseTransactions.Content.ReadFromJsonAsync<List<Transaction>>();
                 }
             }
-            Console.WriteLine($"CategoryId: {id}");
-            Console.WriteLine($"Transactions: {Transactions?.Count}");
 
             return Page();
         }
