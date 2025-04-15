@@ -8,11 +8,9 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Подключение к PostgreSQL
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Регистрация сервисов и репозиториев
 builder.Services.AddControllers().AddNewtonsoftJson();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -23,7 +21,6 @@ builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 
-// Добавление аутентификации через JWT
 var key = Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("JWT ключ не найден"));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -44,29 +41,32 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
     });
 
-builder.Services.AddAuthorization(); // Добавляем авторизацию
+builder.Services.AddAuthorization();
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecific", policy =>
     {
-        policy.WithOrigins("https://localhost:7022") // Здесь указываешь точный источник
+        policy.WithOrigins("https://localhost:7022")
               .AllowAnyMethod()
               .AllowAnyHeader()
-              .AllowCredentials(); // Включи cookies, если они используются
+              .AllowCredentials();
     });
-
 });
 
 var app = builder.Build();
 app.UseCors("AllowSpecific");
 
 app.UseSwagger();
-app.UseSwaggerUI();
+
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
+    c.RoutePrefix = string.Empty;
+});
 
 app.UseRouting();
 
-// Добавляем аутентификацию перед авторизацией!
 app.UseAuthentication();
 app.UseAuthorization();
 

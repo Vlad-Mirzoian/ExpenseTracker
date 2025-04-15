@@ -17,14 +17,12 @@ public class CategoryController : ControllerBase
         _transactionRepository = transactionRepository;
     }
 
-    // Получить все категории
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Category>>> GetCategories()
     {
         return await _context.Categories.ToListAsync();
     }
 
-    // Получить категорию по ID
     [HttpGet("{id}")]
     public async Task<ActionResult<Category>> GetCategory(Guid id)
     {
@@ -35,9 +33,8 @@ public class CategoryController : ControllerBase
         }
         return category;
     }
-    // Добавить категорию
     [HttpPost]
-    public async Task<ActionResult<Category>> CreateCategory([FromForm]Category category)
+    public async Task<ActionResult<Category>> CreateCategory([FromForm] Category category)
     {
         category.Id = Guid.NewGuid();
         _context.Categories.Add(category);
@@ -64,18 +61,16 @@ public class CategoryController : ControllerBase
             return NotFound();
         }
 
-        // Обновляем имя категории
         existingCategory.Name = category.Name;
 
-        // Получаем коды MCC из связанных транзакций
         var mccCodes = await _context.Transactions
             .Where(t => t.CategoryId == id && t.MccCode.HasValue)
             .Select(t => t.MccCode.Value)
             .ToListAsync();
 
-        // Преобразуем List<int> в массив int[]
-        existingCategory.MccCodes = mccCodes.Any() ? mccCodes.ToArray() : Array.Empty<int>();
-
+        existingCategory.MccCodes = mccCodes.Any()
+                ? System.Text.Json.JsonSerializer.Serialize(mccCodes.ToArray())
+                : "[]";
 
         try
         {
@@ -93,7 +88,6 @@ public class CategoryController : ControllerBase
         return NoContent();
     }
 
-    // Удалить категорию
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteCategory(Guid id)
     {

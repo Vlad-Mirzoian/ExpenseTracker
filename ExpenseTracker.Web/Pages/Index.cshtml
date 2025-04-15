@@ -194,7 +194,7 @@
             </div>
 
             <div class="transaction-list">
-                @foreach (var transaction in Model.Transactions)
+                @foreach (var transaction in Model.Transactions.OrderByDescending(t => t.Date))
                 {
                     <div class="transaction-item">
                         <p><strong>Опис:</strong> @transaction.Description</p>
@@ -212,9 +212,22 @@
         ? Model.Transactions
         : Model.Transactions.Where(t => t.CategoryId.ToString() == selectedCategoryId).ToList();
 
-        // Группируем транзакции внутри выбранной категории
-        var transactionData = filteredTransactions
-        .GroupBy(t => t.Description) // Используем описание транзакции как подписи
+        // Словарь для сопоставления CategoryId -> Category.Name
+        var categoryNames = Model.Categories.ToDictionary(c => c.Id, c => c.Name);
+
+        var transactionData = string.IsNullOrEmpty(selectedCategoryId)
+        // Все категории: группируем по названиям категорий
+        ? filteredTransactions
+        .GroupBy(t => categoryNames.ContainsKey(t.CategoryId) ? categoryNames[t.CategoryId] : "Невідома категорія")
+        .Select(g => new
+        {
+            Label = g.Key,
+            TotalAmount = g.Sum(t => t.Amount)
+        })
+        .ToList()
+        // Выбрана конкретная категория: группируем по описанию
+        : filteredTransactions
+        .GroupBy(t => t.Description)
         .Select(g => new
         {
             Label = g.Key,

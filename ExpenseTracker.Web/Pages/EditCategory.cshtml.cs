@@ -51,7 +51,6 @@ namespace ExpenseTracker.Web.Pages
             {
                 return RedirectToPage("/Auth/Login");
             }
-            // Получение категории по ID
             var responseCategory = await client.GetAsync($"api/category/{id}");
             if (responseCategory.IsSuccessStatusCode)
             {
@@ -62,14 +61,12 @@ namespace ExpenseTracker.Web.Pages
                 return NotFound();
             }
 
-            // Получение всех транзакций
             var responseTransactions = await client.GetAsync("api/transaction");
             if (responseTransactions.IsSuccessStatusCode)
             {
                 Transactions = await responseTransactions.Content.ReadFromJsonAsync<List<Transaction>>();
             }
 
-            // Определение, какие транзакции уже привязаны к категории
             SelectedTransactionIds = Transactions
                 .Where(t => t.CategoryId == id)
                 .Select(t => t.Id)
@@ -87,25 +84,47 @@ namespace ExpenseTracker.Web.Pages
                 Category = new Category();
             }
 
-            Category.Id = id; // Явно устанавливаем ID
-            if (Category.MccCodes == null)
+            Category.Id = id;
+            if (string.IsNullOrEmpty(Category.MccCodes))
             {
-                Category.MccCodes = new int[0]; // Инициализируем пустым массивом, если MccCodes равен null
+                Category.MccCodes = "[]";
+            }
+            else
+            {
+                try
+                {
+                    JsonSerializer.Deserialize<int[]>(Category.MccCodes);
+                }
+                catch
+                {
+                    ModelState.AddModelError("Category.MccCodes", "MccCodes must be a valid JSON array of integers.");
+                    return Page();
+                }
             }
 
-            var uniqueMccCodes = new HashSet<int>(Category.MccCodes); // Используем HashSet для уникальности
+            var uniqueMccCodes = new HashSet<int>();
+
+            if (Category.MccCodes != "[]")
+            {
+                var currentMccCodes = JsonSerializer.Deserialize<int[]>(Category.MccCodes);
+                foreach (var code in currentMccCodes)
+                {
+                    uniqueMccCodes.Add(code);
+                }
+            }
 
             foreach (var item in SelectedTransactionIds)
             {
                 var transact = await _transactionRepository.GetByIdAsync(item);
                 if (transact.MccCode.HasValue)
                 {
-                    uniqueMccCodes.Add(transact.MccCode.Value); // Добавляем только уникальные коды
+                    uniqueMccCodes.Add(transact.MccCode.Value);
                 }
             }
 
-            // Преобразуем в массив
-            Category.MccCodes = uniqueMccCodes.ToArray();
+            Category.MccCodes = uniqueMccCodes.Any()
+                    ? JsonSerializer.Serialize(uniqueMccCodes.ToArray())
+                    : "[]";
             Console.WriteLine($"ID category after binding: {Category.Id}");
 
             var token = Request.Cookies["jwt"];
@@ -117,8 +136,6 @@ namespace ExpenseTracker.Web.Pages
             var client = _httpClientFactory.CreateClient("ExpenseTrackerApi");
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-            // Обновление категории
-            // Логируем перед отправкой запроса
             var categoryJson = JsonSerializer.Serialize(Category);
             Console.WriteLine($"Sending Category JSON: {categoryJson}");
 
@@ -133,7 +150,6 @@ namespace ExpenseTracker.Web.Pages
                 return Page();
             }
 
-            // Обновление привязки транзакций
             if (SelectedTransactionIds != null)
             {
                 var updateTransactionRequest = new UpdateTransactionCategoryRequest

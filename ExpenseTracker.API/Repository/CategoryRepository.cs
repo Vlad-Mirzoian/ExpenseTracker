@@ -12,8 +12,8 @@ namespace ExpenseTracker.API.Repository
         public Category? GetByMccCode(int mccCode)
         {
             return _context.Categories
-            .AsEnumerable() // Переключаемся на обработку в памяти
-            .FirstOrDefault(c => c.MccCodes.Contains(mccCode));
+                            .AsEnumerable()
+                            .FirstOrDefault(c => c.MccCodesArray.Contains(mccCode));
         }
 
     }
