@@ -1,6 +1,5 @@
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc;
-using Org.BouncyCastle.Asn1.Ocsp;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.Net.Http.Headers;
 using ExpenseTracker.API.Interface;
 using ExpenseTracker.Data.Model;
@@ -12,11 +11,16 @@ namespace ExpenseTracker.Web.Pages
         private readonly IUserRepository _userRepository;
         private readonly ITransactionRepository _transactionRepository;
 
-        public User UserInformation { get; set; }
-        public List<Category> Categories { get; set; }
-        public List<Transaction> Transactions { get; set; }
+        public User UserInformation { get; set; } = new User();
+        public List<Category> Categories { get; set; } = new List<Category>();
+        public List<Transaction> Transactions { get; set; } = new List<Transaction>();
+        public List<CategorySpendingInfo> CategorySpending { get; set; } = new List<CategorySpendingInfo>();
+        public List<(string Label, decimal TotalAmount)> ChartData { get; set; } = new List<(string, decimal)>();
 
-        public IndexModel(IHttpClientFactory httpClientFactory, IUserRepository userRepository, ITransactionRepository transactionRepository)
+        public IndexModel(
+            IHttpClientFactory httpClientFactory,
+            IUserRepository userRepository,
+            ITransactionRepository transactionRepository)
         {
             _httpClientFactory = httpClientFactory;
             _userRepository = userRepository;
@@ -34,43 +38,97 @@ namespace ExpenseTracker.Web.Pages
             var client = _httpClientFactory.CreateClient("ExpenseTrackerApi");
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-            // Получаем информацию о пользователе
-            var responseUser = await client.GetAsync("api/auth/me");
-            if (responseUser.IsSuccessStatusCode)
+            try
             {
-                UserInformation = await responseUser.Content.ReadFromJsonAsync<User>();
+                // Получение пользователя
+                var responseUser = await client.GetAsync("api/auth/me");
+                if (!responseUser.IsSuccessStatusCode)
+                {
+                    return RedirectToPage("/Auth/Login");
+                }
+
+                UserInformation = await responseUser.Content.ReadFromJsonAsync<User>() ?? new User();
             }
-            else
+            catch (Exception ex)
             {
                 return RedirectToPage("/Auth/Login");
             }
 
-            // Получаем все категории
+
             var responseCategories = await client.GetAsync("api/category");
             if (responseCategories.IsSuccessStatusCode)
             {
                 Categories = await responseCategories.Content.ReadFromJsonAsync<List<Category>>();
             }
 
-            // Загружаем транзакции для выбранной категории или все транзакции
-            if (id.HasValue)
-            {
-                var response = await client.GetAsync($"api/transaction/category/{id.Value}");
-                if (response.IsSuccessStatusCode)
+
+                if (id.HasValue)
                 {
-                    Transactions = await response.Content.ReadFromJsonAsync<List<Transaction>>();
+                    // Транзакции по категории
+                    var response = await client.GetAsync($"api/transaction/category/{id.Value}");
+                    if (response.IsSuccessStatusCode)
+                    {
+                        Transactions = await response.Content.ReadFromJsonAsync<List<Transaction>>();
+                    }
+
+                    ChartData = Transactions
+                        .GroupBy(t => t.Description)
+                        .Select(g => (Label: g.Key, TotalAmount: g.Sum(t => t.Amount)))
+                        .ToList();
                 }
-            }
-            else
-            {
-                var responseTransactions = await client.GetAsync($"api/monobank/transactions/{UserInformation.Id}");
-                if (responseTransactions.IsSuccessStatusCode)
+                else
                 {
-                    Transactions = await responseTransactions.Content.ReadFromJsonAsync<List<Transaction>>();
+                    // Все транзакции
+                    var responseTransactions = await client.GetAsync($"api/monobank/transactions/{UserInformation.Id}");
+                    if (responseTransactions.IsSuccessStatusCode)
+                    {
+                        Transactions = await responseTransactions.Content.ReadFromJsonAsync<List<Transaction>>();
+                    }
+
+                    var totalSpending = Transactions.Sum(t => t.Amount);
+                    var categoryNames = Categories.ToDictionary(c => c.Id, c => c.Name);
+                    CategorySpending = Transactions
+                        .GroupBy(t => categoryNames.ContainsKey(t.CategoryId) ? categoryNames[t.CategoryId] : "Невідома категорія")
+                        .Select(g => new CategorySpendingInfo
+                        {
+                            CategoryName = g.Key,
+                            TotalSpending = g.Sum(t => t.Amount),
+                            Percentage = totalSpending > 0 ? (double)(g.Sum(t => t.Amount) / totalSpending * 100) : 0
+                        })
+                        .OrderByDescending(x => x.TotalSpending)
+                        .ToList();
+
+                    ChartData = CategorySpending
+                        .Select(x => (Label: x.CategoryName, TotalAmount: x.TotalSpending))
+                        .ToList();
                 }
-            }
 
             return Page();
         }
+
+
+        public IActionResult OnPostlogout()
+        {
+            throw new Exception("Проверка: OnPostLogout вызывается");
+
+            // Удаление cookie jwt с флагом HttpOnly, Secure, и другими параметрами
+            Response.Cookies.Delete("jwt", new CookieOptions
+            {
+                HttpOnly = true,          // Безопасность — доступна только через HTTP
+                Secure = true,            // Только для HTTPS
+                SameSite = SameSiteMode.Strict, // Защита от межсайтовых запросов
+                Path = "/",              // Доступна для всего сайта
+            });
+
+            // Редирект на страницу логина
+            return RedirectToPage("/Auth/Login");
+        }
+    }
+
+    public record CategorySpendingInfo
+    {
+        public string CategoryName { get; init; }
+        public decimal TotalSpending { get; init; }
+        public double Percentage { get; init; }
     }
 }

@@ -9,6 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using BCrypt.Net;
 using ExpenseTracker.API.Interface;
 using Org.BouncyCastle.Crypto.Generators;
+using System.ComponentModel.DataAnnotations;
 
 [Route("api/auth")]
 [ApiController]
@@ -24,7 +25,12 @@ public class UserController : ControllerBase
     }
     public class RegisterRequest
     {
+        [Required(ErrorMessage = "Логін обов'язковий")]
+        [MinLength(4, ErrorMessage = "Логін повинен містити щонайменше 4 символи")]
         public string Login { get; set; }
+
+        [Required(ErrorMessage = "Пароль обов'язковий")]
+        [MinLength(8, ErrorMessage = "Пароль повинен містити щонайменше 8 символів")]
         public string Password { get; set; }
         public string Token { get; set; }
     }
@@ -43,7 +49,6 @@ public class UserController : ControllerBase
             return BadRequest(new { message = "Користувач із таким логіном вже існує" });
         }
 
-        // Хешируем пароль перед сохранением
         var newUser = new User
         {
             Login = request.Login,
@@ -86,7 +91,7 @@ public class UserController : ControllerBase
             issuer: _config["Jwt:Issuer"],
             audience: _config["Jwt:Audience"],
             claims: claims,
-            expires: DateTime.Now.AddDays(1), // Токен будет действовать 1 день
+            expires: DateTime.Now.AddDays(1),
             signingCredentials: credentials
         );
 
@@ -114,15 +119,12 @@ public class UserController : ControllerBase
             user.Id,
             user.Login,
             user.Token
-            // Додайте інші необхідні поля
         });
     }
 
-    // Выход (просто на клиенте удаляем токен)
     [HttpPost("logout")]
     public IActionResult Logout()
     {
-        // Тут ничего не сохраняем, токен просто удаляется на клиенте
         return Ok(new { message = "Выход выполнен успешно" });
     }
 }
