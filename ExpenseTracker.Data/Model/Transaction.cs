@@ -7,7 +7,6 @@ public class Transaction
     public User User { get; set; }
     public string Description { get; set; }
     public decimal Amount { get; set; }
-
     public Guid CategoryId { get; set; }
     public Category Category { get; set; }
 
@@ -17,8 +16,6 @@ public class Transaction
         get => _date;
         set => _date = value.Kind == DateTimeKind.Unspecified ? value.ToUniversalTime() : value;
     }
-
-    // Добавленное поле для хранения кода категории MCC
     public int? MccCode { get; set; }
-
+    public string TransactionType { get; set; }
 }

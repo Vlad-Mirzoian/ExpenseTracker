@@ -192,6 +192,11 @@ h3 {
         background: #ef4444;
     }
 
+
+.chart-cards {
+    display: flex;
+    flex-direction: row;
+}
 /* Chart Card */
 .chart-card {
     background: var(--card-bg);
@@ -199,7 +204,7 @@ h3 {
     padding: 1rem;
     box-shadow: var(--shadow);
     margin-bottom: 1.5rem;
-    max-width: 500px; /* Reduced chart size */
+    max-width: 450px; /* Reduced chart size */
     margin-left: auto;
     margin-right: auto;
     text-align: center;

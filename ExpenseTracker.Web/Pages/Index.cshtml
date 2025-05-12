@@ -19,7 +19,7 @@
             <i class="fas fa-bars"></i>
         </button>
         <div class="navbar-actions">
-            <form method="post" asp-page-handler="logout" class="navbar-actions">
+            <form method="post" asp-page-handler="Logout" class="navbar-actions">
                 <button type="submit" class="btn btn-secondary">Вийти</button>
             </form>
         </div>
@@ -59,10 +59,16 @@
 
         <!-- Main Content -->
         <main class="content">
-            <h2>Огляд витрат</h2>
-            <div class="chart-card">
-                <h3>Витрати за категоріями</h3>
-                <canvas id="expenseChart"></canvas>
+            <h2>Огляд фінансів</h2>
+            <div class="chart-cards">
+                <div class="chart-card">
+                    <h3>Витрати за категоріями</h3>
+                    <canvas id="expenseChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Надходження за категоріями</h3>
+                    <canvas id="incomeChart"></canvas>
+                </div>
             </div>
             @if (Request.Query.ContainsKey("id"))
             {
@@ -76,7 +82,7 @@
                             </div>
                             <div class="transaction-details">
                                 <p><strong>@transaction.Description</strong></p>
-                                <p>@transaction.Amount грн</p>
+                                <p>@transaction.Amount.ToString("F2") грн (@transaction.TransactionType)</p>
                                 <p>@transaction.Date.ToString("dd.MM.yyyy")</p>
                             </div>
                         </div>
@@ -86,7 +92,7 @@
             else
             {
                 <div class="category-list">
-                    <h3>Витрати за категоріями</h3>
+                    <h3>Витрати</h3>
                     @foreach (var item in Model.CategorySpending)
                     {
                         <div class="category-card">
@@ -100,6 +106,25 @@
                             </div>
                         </div>
                     }
+                    <h3>Надходження</h3>
+                    @foreach (var item in Model.IncomeByCategory)
+                    {
+                        <div class="category-card">
+                            <div class="category-icon">
+                                <i class="fas fa-money-check-alt"></i>
+                            </div>
+                            <div class="category-details">
+                                <p><strong>@item.CategoryName</strong></p>
+                                <p>@item.TotalSpending.ToString("F2") грн</p>
+                                <p>@item.Percentage.ToString("F1")% від загальних надходжень</p>
+                            </div>
+                        </div>
+                    }
+                    <div class="category-card">
+                        <div class="category-icon">
+                            <i class="fas fa-money-check-alt"></i>
+                        </div>
+                    </div>
                 </div>
             }
         </main>
@@ -107,17 +132,48 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            var labels = @Html.Raw(Json.Serialize(Model.ChartData.Select(t => t.Label)));
-            var amounts = @Html.Raw(Json.Serialize(Model.ChartData.Select(t => t.TotalAmount)));
-            var ctx = document.getElementById('expenseChart').getContext('2d');
-            new Chart(ctx, {
+            // Expense Chart
+            var expenseLabels = @Html.Raw(Json.Serialize(Model.ExpenseChartData.Select(t => t.Label)));
+            var expenseAmounts = @Html.Raw(Json.Serialize(Model.ExpenseChartData.Select(t => t.TotalAmount)));
+            var expenseCtx = document.getElementById('expenseChart').getContext('2d');
+            new Chart(expenseCtx, {
                 type: 'pie',
                 data: {
-                    labels: labels,
+                    labels: expenseLabels,
                     datasets: [{
                         label: 'Витрати',
-                        data: amounts,
+                        data: expenseAmounts,
                         backgroundColor: ['#f87171', '#2dd4bf', '#a78bfa', '#facc15', '#4ade80'],
+                        hoverOffset: 12
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: function (tooltipItem) {
+                                    return tooltipItem.label + ': ' + tooltipItem.raw + ' грн';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Income Chart
+            var incomeLabels = @Html.Raw(Json.Serialize(Model.IncomeChartData.Select(t => t.Label)));
+            var incomeAmounts = @Html.Raw(Json.Serialize(Model.IncomeChartData.Select(t => t.TotalAmount)));
+            var incomeCtx = document.getElementById('incomeChart').getContext('2d');
+            new Chart(incomeCtx, {
+                type: 'pie',
+                data: {
+                    labels: incomeLabels,
+                    datasets: [{
+                        label: 'Надходження',
+                        data: incomeAmounts,
+                        backgroundColor: ['#60a5fa', '#34d399', '#f472b6', '#fbbf24', '#6ee7b7'],
                         hoverOffset: 12
                     }]
                 },

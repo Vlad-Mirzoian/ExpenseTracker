@@ -15,7 +15,10 @@ namespace ExpenseTracker.Web.Pages
         public List<Category> Categories { get; set; } = new List<Category>();
         public List<Transaction> Transactions { get; set; } = new List<Transaction>();
         public List<CategorySpendingInfo> CategorySpending { get; set; } = new List<CategorySpendingInfo>();
-        public List<(string Label, decimal TotalAmount)> ChartData { get; set; } = new List<(string, decimal)>();
+        public List<CategorySpendingInfo> IncomeByCategory { get; set; } = new List<CategorySpendingInfo>();
+        public List<(string Label, decimal TotalAmount)> ExpenseChartData { get; set; } = new List<(string, decimal)>();
+        public List<(string Label, decimal TotalAmount)> IncomeChartData { get; set; } = new List<(string, decimal)>();
+        public decimal TotalIncome { get; set; }
 
         public IndexModel(
             IHttpClientFactory httpClientFactory,
@@ -62,48 +65,81 @@ namespace ExpenseTracker.Web.Pages
             }
 
 
-                if (id.HasValue)
+            if (id.HasValue)
+            {
+                // Транзакции по категории
+                var response = await client.GetAsync($"api/transaction/category/{id.Value}");
+                if (response.IsSuccessStatusCode)
                 {
-                    // Транзакции по категории
-                    var response = await client.GetAsync($"api/transaction/category/{id.Value}");
-                    if (response.IsSuccessStatusCode)
-                    {
-                        Transactions = await response.Content.ReadFromJsonAsync<List<Transaction>>();
-                    }
-
-                    ChartData = Transactions
-                        .GroupBy(t => t.Description)
-                        .Select(g => (Label: g.Key, TotalAmount: g.Sum(t => t.Amount)))
-                        .ToList();
-                }
-                else
-                {
-                    // Все транзакции
-                    var responseTransactions = await client.GetAsync($"api/monobank/transactions/{UserInformation.Id}");
-                    if (responseTransactions.IsSuccessStatusCode)
-                    {
-                        Transactions = await responseTransactions.Content.ReadFromJsonAsync<List<Transaction>>();
-                    }
-
-                    var totalSpending = Transactions.Sum(t => t.Amount);
-                    var categoryNames = Categories.ToDictionary(c => c.Id, c => c.Name);
-                    CategorySpending = Transactions
-                        .GroupBy(t => categoryNames.ContainsKey(t.CategoryId) ? categoryNames[t.CategoryId] : "Невідома категорія")
-                        .Select(g => new CategorySpendingInfo
-                        {
-                            CategoryName = g.Key,
-                            TotalSpending = g.Sum(t => t.Amount),
-                            Percentage = totalSpending > 0 ? (double)(g.Sum(t => t.Amount) / totalSpending * 100) : 0
-                        })
-                        .OrderByDescending(x => x.TotalSpending)
-                        .ToList();
-
-                    ChartData = CategorySpending
-                        .Select(x => (Label: x.CategoryName, TotalAmount: x.TotalSpending))
-                        .ToList();
+                    Transactions = await response.Content.ReadFromJsonAsync<List<Transaction>>();
                 }
 
-            return Page();
+                // Chart data for specific category: group by description
+                ExpenseChartData = Transactions
+                    .Where(t => t.TransactionType == "Expense")
+                    .GroupBy(t => t.Description)
+                    .Select(g => (Label: g.Key, TotalAmount: g.Sum(t => t.Amount)))
+                    .ToList();
+
+                IncomeChartData = Transactions
+                    .Where(t => t.TransactionType == "Income")
+                    .GroupBy(t => t.Description)
+                    .Select(g => (Label: g.Key, TotalAmount: g.Sum(t => t.Amount)))
+                    .ToList();
+
+                return Page();
+            }
+            else
+            {
+                var responseTransactions = await client.GetAsync($"api/monobank/transactions/{UserInformation.Id}");
+                if (responseTransactions.IsSuccessStatusCode)
+                {
+                    Transactions = await responseTransactions.Content.ReadFromJsonAsync<List<Transaction>>();
+                }
+
+                // Separate expenses and income
+                var expenses = Transactions.Where(t => t.TransactionType == "Expense").ToList();
+                var income = Transactions.Where(t => t.TransactionType == "Income").ToList();
+                TotalIncome = income.Sum(t => t.Amount);
+
+                // Calculate spending per category for expenses
+                var totalSpending = expenses.Sum(t => Math.Abs(t.Amount));
+                var categoryNames = Categories.ToDictionary(c => c.Id, c => c.Name);
+                CategorySpending = expenses
+                    .GroupBy(t => categoryNames.ContainsKey(t.CategoryId) ? categoryNames[t.CategoryId] : "Невідома категорія")
+                    .Select(g => new CategorySpendingInfo
+                    {
+                        CategoryName = g.Key,
+                        TotalSpending = g.Sum(t => Math.Abs(t.Amount)),
+                        Percentage = totalSpending > 0 ? (double)(g.Sum(t => Math.Abs(t.Amount)) / totalSpending * 100) : 0
+                    })
+                    .OrderByDescending(x => x.TotalSpending)
+                    .ToList();
+
+                // Calculate income per category
+                var totalIncome = income.Sum(t => t.Amount);
+                IncomeByCategory = income
+                    .GroupBy(t => categoryNames.ContainsKey(t.CategoryId) ? categoryNames[t.CategoryId] : "Невідома категорія")
+                    .Select(g => new CategorySpendingInfo
+                    {
+                        CategoryName = g.Key,
+                        TotalSpending = g.Sum(t => t.Amount),
+                        Percentage = totalIncome > 0 ? (double)(g.Sum(t => t.Amount) / totalIncome * 100) : 0
+                    })
+                    .OrderByDescending(x => x.TotalSpending)
+                    .ToList();
+
+                // Chart data for expenses and income
+                ExpenseChartData = CategorySpending
+                    .Select(x => (Label: x.CategoryName, TotalAmount: x.TotalSpending))
+                    .ToList();
+
+                IncomeChartData = IncomeByCategory
+                    .Select(x => (Label: x.CategoryName, TotalAmount: x.TotalSpending))
+                    .ToList();
+
+                return Page();
+            }
         }
 
 

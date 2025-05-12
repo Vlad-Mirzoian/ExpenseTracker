@@ -59,11 +59,11 @@ public class MonobankService
             foreach (var t in monobankTransactions)
             {
                 var transactionDate = DateTimeOffset.FromUnixTimeSeconds(t.Time).UtcDateTime;
-
                 var existingTransaction = existingTransactions.FirstOrDefault(tx =>
                     tx.Description == t.Description &&
                     tx.Amount == t.Amount / 100m &&
-                    tx.Date == transactionDate);
+                    tx.Date == transactionDate &&
+                    tx.TransactionType == (t.Amount < 0 ? "Expense" : "Income"));
 
                 if (existingTransaction == null)
                 {
@@ -74,7 +74,8 @@ public class MonobankService
                         Description = t.Description,
                         Amount = t.Amount / 100m,
                         Date = transactionDate,
-                        MccCode = t.MccCode
+                        MccCode = t.MccCode,
+                        TransactionType = t.Amount < 0 ? "Expense" : "Income"
                     };
 
                     if (transaction.MccCode == 0)
@@ -100,8 +101,6 @@ public class MonobankService
                     await _transactionRepository.AddAsync(transactiontoSave);
                 }
             }
-            Console.WriteLine("Кількість транзакцій", transactionsToSave.Count);
-            Console.WriteLine("Кількість транзакцій в былом", existingTransactions.Count);
             // 6. Возвращаем объединённый список (существующие + новые)
             return existingTransactions.Concat(transactionsToSave).ToList();
         }
