@@ -59,10 +59,10 @@ public class MonobankService
             foreach (var t in monobankTransactions)
             {
                 var transactionDate = DateTimeOffset.FromUnixTimeSeconds(t.Time).UtcDateTime;
+
                 var existingTransaction = existingTransactions.FirstOrDefault(tx =>
-                    tx.Description == t.Description &&
-                    tx.Amount == t.Amount / 100m &&
-                    tx.Date == transactionDate &&
+                    Math.Abs(tx.Amount - (t.Amount / 100m)) < 0.01m &&
+                    Math.Abs((tx.Date - transactionDate).TotalSeconds) < 1 &&
                     tx.TransactionType == (t.Amount < 0 ? "Expense" : "Income"));
 
                 if (existingTransaction == null)
@@ -89,7 +89,7 @@ public class MonobankService
                         transaction.CategoryId = defaultCategory;
                     }
 
-                        transactionsToSave.Add(transaction);
+                    transactionsToSave.Add(transaction);
                 }
             }
 

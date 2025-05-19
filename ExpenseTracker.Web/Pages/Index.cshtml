@@ -1,5 +1,6 @@
 ﻿@page
 @model ExpenseTracker.Web.Pages.IndexModel
+
 <!DOCTYPE html>
 <html lang="uk">
 <head>
@@ -19,7 +20,8 @@
             <i class="fas fa-bars"></i>
         </button>
         <div class="navbar-actions">
-            <form method="post" asp-page-handler="Logout" class="navbar-actions">
+            <form method="post" asp-page="/Index" asp-page-handler="Logout">
+                @Html.AntiForgeryToken()
                 <button type="submit" class="btn btn-secondary">Вийти</button>
             </form>
         </div>

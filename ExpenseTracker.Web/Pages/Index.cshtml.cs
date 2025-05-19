@@ -3,8 +3,11 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.Net.Http.Headers;
 using ExpenseTracker.API.Interface;
 using ExpenseTracker.Data.Model;
+using Microsoft.AspNetCore.Authorization;
 namespace ExpenseTracker.Web.Pages
 {
+    [IgnoreAntiforgeryToken]
+
     public class IndexModel : PageModel
     {
         private readonly IHttpClientFactory _httpClientFactory;
@@ -143,22 +146,15 @@ namespace ExpenseTracker.Web.Pages
         }
 
 
-        public IActionResult OnPostlogout()
+        public IActionResult OnPost()
         {
-            throw new Exception("Проверка: OnPostLogout вызывается");
+            Console.WriteLine("Вызов OnPostLogout");
+            // Удалить токен
+            Response.Cookies.Delete("jwt");
 
-            // Удаление cookie jwt с флагом HttpOnly, Secure, и другими параметрами
-            Response.Cookies.Delete("jwt", new CookieOptions
-            {
-                HttpOnly = true,          // Безопасность — доступна только через HTTP
-                Secure = true,            // Только для HTTPS
-                SameSite = SameSiteMode.Strict, // Защита от межсайтовых запросов
-                Path = "/",              // Доступна для всего сайта
-            });
-
-            // Редирект на страницу логина
             return RedirectToPage("/Auth/Login");
         }
+
     }
 
     public record CategorySpendingInfo

@@ -11,8 +11,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ExpenseTracker.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250511211002_AddTransactionType")]
-    partial class AddTransactionType
+    [Migration("20250517193908_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

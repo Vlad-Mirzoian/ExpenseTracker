@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace ExpenseTracker.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialMigration : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -19,7 +19,7 @@ namespace ExpenseTracker.Data.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
-                    MccCodes = table.Column<int[]>(type: "integer[]", nullable: false)
+                    MccCodes = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -50,7 +50,8 @@ namespace ExpenseTracker.Data.Migrations
                     Amount = table.Column<decimal>(type: "numeric", nullable: false),
                     CategoryId = table.Column<Guid>(type: "uuid", nullable: false),
                     Date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    MccCode = table.Column<int>(type: "integer", nullable: true)
+                    MccCode = table.Column<int>(type: "integer", nullable: true),
+                    TransactionType = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -74,19 +75,19 @@ namespace ExpenseTracker.Data.Migrations
                 columns: new[] { "Id", "MccCodes", "Name" },
                 values: new object[,]
                 {
-                    { new Guid("1a12c08c-f9eb-4f29-8480-ef05137e0cf5"), new[] { 5912 }, "Аптеки" },
-                    { new Guid("2afd336a-03b8-4f17-8cfe-2c0e93cb4c49"), new[] { 4829 }, "Зняття/Відправка" },
-                    { new Guid("61e1f6c7-7b85-47d1-bb9a-d78f911e8cd3"), new[] { 5541 }, "АЗС" },
-                    { new Guid("66666666-6666-6666-6666-666666666666"), new[] { 0 }, "Інше" },
-                    { new Guid("74d258ea-bf82-4934-bb9a-8a343d9da1ea"), new[] { 7832 }, "Кінотеатри" },
-                    { new Guid("86cdeb09-ae28-4a8f-9006-24ce4c44419f"), new[] { 6012 }, "Надходження" },
-                    { new Guid("a25a42f4-88b3-4006-b0c3-2c7a15a358e7"), new[] { 5411, 5499 }, "Супермаркети" },
-                    { new Guid("ad42b743-ef9a-43e5-b71f-97a742ae1a85"), new[] { 5651 }, "Магазини одягу" },
-                    { new Guid("b50ee9f0-3480-40d8-bb48-e15bf9e2fc03"), new[] { 5811, 8999 }, "Доставка" },
-                    { new Guid("c1b15d7e-0b6f-4d19-9d8c-b0c8722277d0"), new[] { 5814, 5812, 5462 }, "Кафе/ресторани" },
-                    { new Guid("cf668835-71a2-4868-87b8-3938ac9dabf9"), new[] { 4900 }, "Комуналка" },
-                    { new Guid("d177f3d7-d5d2-4d97-bd9e-45f54e2e268f"), new[] { 7011 }, "Готелі" },
-                    { new Guid("db60d0b9-89e6-4694-9295-56b688254a2f"), new[] { 6011 }, "Банки" }
+                    { new Guid("1a12c08c-f9eb-4f29-8480-ef05137e0cf5"), "[5912]", "Аптеки" },
+                    { new Guid("2afd336a-03b8-4f17-8cfe-2c0e93cb4c49"), "[4829]", "Зняття/Відправка" },
+                    { new Guid("61e1f6c7-7b85-47d1-bb9a-d78f911e8cd3"), "[5541]", "АЗС" },
+                    { new Guid("66666666-6666-6666-6666-666666666666"), "[0]", "Інше" },
+                    { new Guid("74d258ea-bf82-4934-bb9a-8a343d9da1ea"), "[7832]", "Кінотеатри" },
+                    { new Guid("86cdeb09-ae28-4a8f-9006-24ce4c44419f"), "[6012]", "Надходження" },
+                    { new Guid("a25a42f4-88b3-4006-b0c3-2c7a15a358e7"), "[5411,5499]", "Супермаркети" },
+                    { new Guid("ad42b743-ef9a-43e5-b71f-97a742ae1a85"), "[5651]", "Магазини одягу" },
+                    { new Guid("b50ee9f0-3480-40d8-bb48-e15bf9e2fc03"), "[5811,8999]", "Доставка" },
+                    { new Guid("c1b15d7e-0b6f-4d19-9d8c-b0c8722277d0"), "[5814,5812,5462]", "Кафе/ресторани" },
+                    { new Guid("cf668835-71a2-4868-87b8-3938ac9dabf9"), "[4900]", "Комуналка" },
+                    { new Guid("d177f3d7-d5d2-4d97-bd9e-45f54e2e268f"), "[7011]", "Готелі" },
+                    { new Guid("db60d0b9-89e6-4694-9295-56b688254a2f"), "[6011]", "Банки" }
                 });
 
             migrationBuilder.CreateIndex(
