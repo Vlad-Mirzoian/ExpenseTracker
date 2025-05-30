@@ -1,5 +1,5 @@
-﻿using ExpenseTracker.API.Interface;
-using ExpenseTracker.API.Repository;
+﻿using ExpenseTracker;
+using ExpenseTracker.API;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;

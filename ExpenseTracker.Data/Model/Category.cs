@@ -1,33 +1,20 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 
-public class Category
+namespace ExpenseTracker.Data.Model
 {
-    public Guid Id { get; set; }
-    public string Name { get; set; }
-    public string MccCodes { get; set; }
-
-    [NotMapped]
-    public int[] MccCodesArray
+    public class Category
     {
-        get
+        public Guid Id { get; set; }
+        public string Name { get; set; }
+        public string MccCodes { get; set; }
+        public bool IsBuiltIn { get; set; }
+
+        [NotMapped]
+        public int[] MccCodesArray
         {
-            if (string.IsNullOrEmpty(MccCodes))
-                return Array.Empty<int>();
-            try
-            {
-                return JsonSerializer.Deserialize<int[]>(MccCodes) ?? Array.Empty<int>();
-            }
-            catch
-            {
-                return Array.Empty<int>();
-            }
-        }
-        set
-        {
-            MccCodes = value == null || value.Length == 0
-                ? null
-                : JsonSerializer.Serialize(value);
+            get => string.IsNullOrEmpty(MccCodes) ? Array.Empty<int>() : JsonSerializer.Deserialize<int[]>(MccCodes);
+            set => MccCodes = JsonSerializer.Serialize(value);
         }
     }
 }

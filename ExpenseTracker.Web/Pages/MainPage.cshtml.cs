@@ -1,29 +1,29 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.Net.Http.Headers;
-using ExpenseTracker.API.Interface;
+using ExpenseTracker.API;
 using ExpenseTracker.Data.Model;
-using Microsoft.AspNetCore.Authorization;
+
 namespace ExpenseTracker.Web.Pages
 {
-    [IgnoreAntiforgeryToken]
-
-    public class IndexModel : PageModel
+    public class MainPageModel : PageModel
     {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IUserRepository _userRepository;
         private readonly ITransactionRepository _transactionRepository;
 
         public User UserInformation { get; set; } = new User();
-        public List<Category> Categories { get; set; } = new List<Category>();
-        public List<Transaction> Transactions { get; set; } = new List<Transaction>();
-        public List<CategorySpendingInfo> CategorySpending { get; set; } = new List<CategorySpendingInfo>();
-        public List<CategorySpendingInfo> IncomeByCategory { get; set; } = new List<CategorySpendingInfo>();
+        public List<CategoryDto> Categories { get; set; } = new List<CategoryDto>();
+        public List<TransactionDto> Transactions { get; set; } = new List<TransactionDto>();
+        public List<CategorySpendingInfo2> CategorySpending { get; set; } = new List<CategorySpendingInfo2>();
+        public List<CategorySpendingInfo2> IncomeByCategory { get; set; } = new List<CategorySpendingInfo2>();
         public List<(string Label, decimal TotalAmount)> ExpenseChartData { get; set; } = new List<(string, decimal)>();
         public List<(string Label, decimal TotalAmount)> IncomeChartData { get; set; } = new List<(string, decimal)>();
         public decimal TotalIncome { get; set; }
+        public string SyncError { get; set; }
+        public string UpdateCategoryError { get; set; }
 
-        public IndexModel(
+        public MainPageModel(
             IHttpClientFactory httpClientFactory,
             IUserRepository userRepository,
             ITransactionRepository transactionRepository)
@@ -35,18 +35,17 @@ namespace ExpenseTracker.Web.Pages
 
         public async Task<IActionResult> OnGetAsync(Guid? id)
         {
-            var token = Request.Cookies["jwt"];
-            if (string.IsNullOrEmpty(token))
+            var jwt = Request.Cookies["jwt"];
+            if (string.IsNullOrEmpty(jwt))
             {
                 return RedirectToPage("/Auth/Login");
             }
 
             var client = _httpClientFactory.CreateClient("ExpenseTrackerApi");
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", jwt);
 
             try
             {
-                // Получение пользователя
                 var responseUser = await client.GetAsync("api/auth/me");
                 if (!responseUser.IsSuccessStatusCode)
                 {
@@ -54,40 +53,42 @@ namespace ExpenseTracker.Web.Pages
                 }
 
                 UserInformation = await responseUser.Content.ReadFromJsonAsync<User>() ?? new User();
+
+                var user = await _userRepository.GetByIdAsync(UserInformation.Id);
+                if (user == null)
+                {
+                    return RedirectToPage("/Auth/Login");
+                }
             }
             catch (Exception ex)
             {
                 return RedirectToPage("/Auth/Login");
             }
 
-
             var responseCategories = await client.GetAsync("api/category");
             if (responseCategories.IsSuccessStatusCode)
             {
-                Categories = await responseCategories.Content.ReadFromJsonAsync<List<Category>>();
+                Categories = await responseCategories.Content.ReadFromJsonAsync<List<CategoryDto>>() ?? new List<CategoryDto>();
             }
-
 
             if (id.HasValue)
             {
-                // Транзакции по категории
                 var response = await client.GetAsync($"api/transaction/category/{id.Value}");
                 if (response.IsSuccessStatusCode)
                 {
-                    Transactions = await response.Content.ReadFromJsonAsync<List<Transaction>>();
+                    Transactions = await response.Content.ReadFromJsonAsync<List<TransactionDto>>() ?? new List<TransactionDto>();
                 }
 
-                // Chart data for specific category: group by description
                 ExpenseChartData = Transactions
                     .Where(t => t.TransactionType == "Expense")
                     .GroupBy(t => t.Description)
-                    .Select(g => (Label: g.Key, TotalAmount: g.Sum(t => t.Amount)))
+                    .Select(g => (Label: (string)g.Key, TotalAmount: g.Sum(t => t.Amount)))
                     .ToList();
 
                 IncomeChartData = Transactions
                     .Where(t => t.TransactionType == "Income")
                     .GroupBy(t => t.Description)
-                    .Select(g => (Label: g.Key, TotalAmount: g.Sum(t => t.Amount)))
+                    .Select(g => (gLabel: (string)g.Key, TotalAmount: g.Sum(t => t.Amount)))
                     .ToList();
 
                 return Page();
@@ -97,20 +98,18 @@ namespace ExpenseTracker.Web.Pages
                 var responseTransactions = await client.GetAsync($"api/monobank/transactions/{UserInformation.Id}");
                 if (responseTransactions.IsSuccessStatusCode)
                 {
-                    Transactions = await responseTransactions.Content.ReadFromJsonAsync<List<Transaction>>();
+                    Transactions = await responseTransactions.Content.ReadFromJsonAsync<List<TransactionDto>>() ?? new List<TransactionDto>();
                 }
 
-                // Separate expenses and income
                 var expenses = Transactions.Where(t => t.TransactionType == "Expense").ToList();
                 var income = Transactions.Where(t => t.TransactionType == "Income").ToList();
                 TotalIncome = income.Sum(t => t.Amount);
 
-                // Calculate spending per category for expenses
                 var totalSpending = expenses.Sum(t => Math.Abs(t.Amount));
                 var categoryNames = Categories.ToDictionary(c => c.Id, c => c.Name);
                 CategorySpending = expenses
                     .GroupBy(t => categoryNames.ContainsKey(t.CategoryId) ? categoryNames[t.CategoryId] : "Невідома категорія")
-                    .Select(g => new CategorySpendingInfo
+                    .Select(g => new CategorySpendingInfo2
                     {
                         CategoryName = g.Key,
                         TotalSpending = g.Sum(t => Math.Abs(t.Amount)),
@@ -119,11 +118,10 @@ namespace ExpenseTracker.Web.Pages
                     .OrderByDescending(x => x.TotalSpending)
                     .ToList();
 
-                // Calculate income per category
                 var totalIncome = income.Sum(t => t.Amount);
                 IncomeByCategory = income
                     .GroupBy(t => categoryNames.ContainsKey(t.CategoryId) ? categoryNames[t.CategoryId] : "Невідома категорія")
-                    .Select(g => new CategorySpendingInfo
+                    .Select(g => new CategorySpendingInfo2
                     {
                         CategoryName = g.Key,
                         TotalSpending = g.Sum(t => t.Amount),
@@ -132,7 +130,6 @@ namespace ExpenseTracker.Web.Pages
                     .OrderByDescending(x => x.TotalSpending)
                     .ToList();
 
-                // Chart data for expenses and income
                 ExpenseChartData = CategorySpending
                     .Select(x => (Label: x.CategoryName, TotalAmount: x.TotalSpending))
                     .ToList();
@@ -145,22 +142,62 @@ namespace ExpenseTracker.Web.Pages
             }
         }
 
-
-        public IActionResult OnPost()
+        public IActionResult OnPostLogout()
         {
-            Console.WriteLine("Вызов OnPostLogout");
-            // Удалить токен
             Response.Cookies.Delete("jwt");
-
             return RedirectToPage("/Auth/Login");
         }
 
+        public async Task<IActionResult> OnPostUpdateTransactionCategoryAsync(Guid transactionId, Guid categoryId)
+        {
+            var jwt = Request.Cookies["jwt"];
+            if (string.IsNullOrEmpty(jwt))
+            {
+                return RedirectToPage("/Auth/Login");
+            }
+
+            if (categoryId == Guid.Empty)
+            {
+                UpdateCategoryError = "Виберіть категорію.";
+                return RedirectToPage(new { id = Request.Query["id"] });
+            }
+
+            var client = _httpClientFactory.CreateClient("ExpenseTrackerApi");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", jwt);
+
+            var request = new UpdateTransactionCategoryRequest
+            {
+                CategoryId = categoryId,
+                TransactionIds = new List<Guid> { transactionId }
+            };
+
+            try
+            {
+                var response = await client.PostAsJsonAsync("api/transaction/update-category", request);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return RedirectToPage(new { id = Request.Query["id"] });
+                }
+
+                var errorContent = await response.Content.ReadAsStringAsync();
+                UpdateCategoryError = $"Помилка: {errorContent}";
+            }
+            catch (Exception ex)
+            {
+                UpdateCategoryError = $"Помилка: {ex.Message}";
+            }
+
+            return RedirectToPage(new { id = Request.Query["id"] });
+        }
     }
 
-    public record CategorySpendingInfo
+    public record CategorySpendingInfo2
     {
+        public Guid CategoryId { get; init; }
         public string CategoryName { get; init; }
         public decimal TotalSpending { get; init; }
         public double Percentage { get; init; }
+        public bool IsBuiltIn { get; init; }
     }
 }

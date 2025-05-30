@@ -1,136 +1,150 @@
-﻿using ExpenseTracker.API.Interface;
-using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 
-public class MonobankService
+namespace ExpenseTracker.API
 {
-    private readonly HttpClient _httpClient;
-    private readonly ITransactionRepository _transactionRepository;
-    private readonly ICategoryRepository _categoryRepository;
-    private readonly TransactionCategorizationService _categorizationService;
-    private const string BaseUrl = "https://api.monobank.ua";
-
-    public MonobankService(HttpClient httpClient, ITransactionRepository transactionRepository, ICategoryRepository categoryRepository, TransactionCategorizationService categorizationService)
+    public class MonobankService
     {
-        _httpClient = httpClient;
-        _transactionRepository = transactionRepository;
-        _categoryRepository = categoryRepository;
-        _categorizationService = categorizationService;
-    }
+        private readonly HttpClient _httpClient;
+        private readonly ITransactionRepository _transactionRepository;
+        private readonly TransactionCategorizationService _categorizationService;
+        private readonly ILogger<MonobankService> _logger;
+        private const string BaseUrl = "https://api.monobank.ua";
 
-    public async Task<List<Transaction>> GetTransactionsAsync(Guid id, string token, long fromTimestamp, long toTimestamp)
-    {
-        try
+        public MonobankService(
+            HttpClient httpClient,
+            ITransactionRepository transactionRepository,
+            TransactionCategorizationService categorizationService,
+            ILogger<MonobankService> logger)
         {
-            if (string.IsNullOrEmpty(token))
+            _httpClient = httpClient;
+            _transactionRepository = transactionRepository;
+            _categorizationService = categorizationService;
+            _logger = logger;
+        }
+
+        public async Task<List<Transaction>> GetTransactionsAsync(Guid userId, string token, long fromTimestamp, long toTimestamp)
+        {
+            _logger.LogInformation("Fetching transactions for user {UserId} from {FromTimestamp} to {ToTimestamp}", userId, fromTimestamp, toTimestamp);
+
+            try
             {
-                throw new ArgumentException("Токен Monobank не должен быть пустым.");
-            }
-
-            var request = new HttpRequestMessage(HttpMethod.Get, $"{BaseUrl}/personal/statement/0/{fromTimestamp}/{toTimestamp}");
-            request.Headers.Add("X-Token", token);
-
-            var response = await _httpClient.SendAsync(request);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                throw new HttpRequestException($"Ошибка Monobank API: {response.StatusCode} - {errorContent}");
-            }
-
-            var content = await response.Content.ReadAsStringAsync();
-            var monobankTransactions = JsonSerializer.Deserialize<List<MonobankTransaction>>(content, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
-
-            if (monobankTransactions == null || !monobankTransactions.Any())
-            {
-                return new List<Transaction>();
-            }
-
-            var transactionDateRange = new DateTimeOffset(fromTimestamp, TimeSpan.Zero).UtcDateTime;
-
-            var existingTransactions = await _transactionRepository.GetTransactionsByUserAndDateAsync(id, transactionDateRange);
-
-            var transactionsToSave = new List<Transaction>();
-
-            foreach (var t in monobankTransactions)
-            {
-                var transactionDate = DateTimeOffset.FromUnixTimeSeconds(t.Time).UtcDateTime;
-
-                var existingTransaction = existingTransactions.FirstOrDefault(tx =>
-                    Math.Abs(tx.Amount - (t.Amount / 100m)) < 0.01m &&
-                    Math.Abs((tx.Date - transactionDate).TotalSeconds) < 1 &&
-                    tx.TransactionType == (t.Amount < 0 ? "Expense" : "Income"));
-
-                if (existingTransaction == null)
+                if (string.IsNullOrEmpty(token))
                 {
+                    _logger.LogError("Token is empty for user {UserId}", userId);
+                    throw new ArgumentException("Monobank token cannot be empty.");
+                }
+
+                var request = new HttpRequestMessage(HttpMethod.Get, $"{BaseUrl}/personal/statement/0/{fromTimestamp}/{toTimestamp}");
+                request.Headers.Add("X-Token", token);
+                _logger.LogDebug("Sending request to {Url}", request.RequestUri);
+
+                var response = await _httpClient.SendAsync(request);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError("Monobank API error: {StatusCode} - {Error}", response.StatusCode, errorContent);
+                    throw new HttpRequestException($"Monobank API request failed: {errorContent}");
+                }
+
+                var content = await response.Content.ReadAsStringAsync();
+                _logger.LogDebug("Received response: {ContentLength} chars", content.Length);
+
+                var monobankTransactions = JsonSerializer.Deserialize<List<MonobankTransaction>>(content, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (monobankTransactions == null || !monobankTransactions.Any())
+                {
+                    _logger.LogInformation("No transactions found for user {UserId}", userId);
+                    return new List<Transaction>();
+                }
+
+                _logger.LogInformation("Deserialized {Count} transactions", monobankTransactions.Count);
+
+                var fromDate = DateTimeOffset.FromUnixTimeSeconds(fromTimestamp).UtcDateTime;
+                var toDate = DateTimeOffset.FromUnixTimeSeconds(toTimestamp).UtcDateTime;
+                var existingTransactions = await _transactionRepository.GetTransactionsByUserAndDateAsync(userId, fromDate, toDate);
+                _logger.LogDebug("Found {Count} existing transactions", existingTransactions.Count);
+
+                var transactionsToSave = new List<Transaction>();
+
+                foreach (var t in monobankTransactions)
+                {
+                    var transactionDate = DateTimeOffset.FromUnixTimeSeconds(t.Time).UtcDateTime;
+
+                    var existingTransaction = existingTransactions.FirstOrDefault(tx =>
+                        Math.Abs(tx.Amount - (t.Amount / 100m)) < 0.01m &&
+                        Math.Abs((tx.Date - transactionDate).TotalSeconds) < 1 &&
+                        tx.TransactionType == (t.Amount < 0 ? "Expense" : "Income"));
+
+                    if (existingTransaction != null)
+                    {
+                        _logger.LogDebug("Skipping existing transaction: {Description}", t.Description);
+                        continue;
+                    }
+
                     var transaction = new Transaction
                     {
                         Id = Guid.NewGuid(),
-                        UserId = id,
-                        Description = t.Description,
+                        UserId = userId,
+                        Description = t.Description ?? "",
                         Amount = t.Amount / 100m,
                         Date = transactionDate,
                         MccCode = t.MccCode,
-                        TransactionType = t.Amount < 0 ? "Expense" : "Income"
+                        TransactionType = t.Amount < 0 ? "Expense" : "Income",
+                        IsManuallyCategorized = false
                     };
 
-                    if (transaction.MccCode == 0)
-                    {
-                        var defaultCategory = await _categoryRepository.GetByNameAsync("Інше");
-                        transaction.CategoryId = defaultCategory?.Id ?? Guid.Empty;
-                    }
-                    else
-                    {
-                        var defaultCategory = await _categorizationService.CategorizeTransactionAsync(transaction.MccCode.GetValueOrDefault());
-                        transaction.CategoryId = defaultCategory;
-                    }
+                    transaction.CategoryId = await _categorizationService.CategorizeTransactionAsync(t.MccCode);
+                    _logger.LogDebug("Assigned category ID {CategoryId} for transaction {Description}", transaction.CategoryId, transaction.Description);
 
                     transactionsToSave.Add(transaction);
                 }
-            }
 
-            // 5. Сохраняем новые транзакции в БД (если есть)
-            if (transactionsToSave.Any())
-            {
-                foreach(var transactiontoSave in transactionsToSave)
+                if (transactionsToSave.Any())
                 {
-                    await _transactionRepository.AddAsync(transactiontoSave);
+                    _logger.LogInformation("Saving {Count} new transactions", transactionsToSave.Count);
+                    foreach (var transaction in transactionsToSave)
+                    {
+                        await _transactionRepository.AddAsync(transaction);
+                    }
+                    _logger.LogInformation("Saved transactions successfully");
                 }
+
+                return existingTransactions.Concat(transactionsToSave).ToList();
             }
-            // 6. Возвращаем объединённый список (существующие + новые)
-            return existingTransactions.Concat(transactionsToSave).ToList();
-        }
-        catch (ArgumentException ex)
-        {
-            throw new Exception($"Ошибка валидации: {ex.Message}");
-        }
-        catch (HttpRequestException ex)
-        {
-            throw new Exception($"Ошибка при получении данных из Monobank: {ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            throw new Exception($"Непредвиденная ошибка: {ex.Message}");
+            catch (ArgumentException ex)
+            {
+                _logger.LogError(ex, "Validation error");
+                throw;
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, "Monobank API error");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error");
+                throw;
+            }
         }
     }
 
-}
+    public class MonobankTransaction
+    {
+        [JsonPropertyName("description")]
+        public string Description { get; set; }
 
-public class MonobankTransaction
-{
-    [JsonPropertyName("description")]
-    public string Description { get; set; }
+        [JsonPropertyName("amount")]
+        public int Amount { get; set; }
 
-    [JsonPropertyName("amount")]
-    public int Amount { get; set; } // В копейках
+        [JsonPropertyName("time")]
+        public long Time { get; set; }
 
-    [JsonPropertyName("time")]
-    public long Time { get; set; } // Unix timestamp
-
-    [JsonPropertyName("originalMcc")]
-    public int? MccCode { get; set; } // Теперь правильно!
+        [JsonPropertyName("mcc")]
+        public int? MccCode { get; set; }
+    }
 }

@@ -1,9 +1,11 @@
-﻿using ExpenseTracker.API.Repository;
+﻿using ExpenseTracker.Data.Model;
 
-namespace ExpenseTracker.API.Interface
+namespace ExpenseTracker.API
 {
-    public interface ICategoryRepository: IGenericRepository<Category>
+    public interface ICategoryRepository : IGenericRepository<Category>
     {
-        Category? GetByMccCode(int mccCode);
+        Task<Category> GetDefaultCategoryAsync();
+        Task AddParentRelationshipAsync(Guid categoryId, Guid parentCategoryId);
+        Task RemoveParentRelationshipsAsync(Guid categoryId);
     }
 }

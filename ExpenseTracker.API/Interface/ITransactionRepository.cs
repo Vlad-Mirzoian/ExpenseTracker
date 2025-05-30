@@ -1,11 +1,15 @@
-﻿using ExpenseTracker.API.Repository;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
-namespace ExpenseTracker.API.Interface
+namespace ExpenseTracker.API
 {
-    public interface ITransactionRepository: IGenericRepository<Transaction>
+    public interface ITransactionRepository : IGenericRepository<Transaction>
     {
-        Task<List<Transaction>> GetTransactionsByUserAndDateAsync(Guid userId, DateTime transactionDateRange);
+        Task<List<Transaction>> GetTransactionsByUserAndDateAsync(Guid userId, DateTime fromDate, DateTime toDate);
         Task<List<Transaction>> GetTransactionsByCategoriesAsync(Guid categoryId);
-        Task UpdateCategoryForTransactions(Guid categoryId, List<Guid> transactionIds);
+        Task UpdateCategoryForTransactionsAsync(Guid categoryId, List<Guid> transactionIds);
+        Task AddRangeAsync(IEnumerable<Transaction> transactions);
+        Task<List<Guid>> GetValidExpenseTransactionIdsAsync(List<Guid> transactionIds);
     }
 }

@@ -1,6 +1,6 @@
 ﻿using System.Linq.Expressions;
 
-namespace ExpenseTracker.API.Interface
+namespace ExpenseTracker.API
 {
     public interface IGenericRepository<T> where T : class
     {

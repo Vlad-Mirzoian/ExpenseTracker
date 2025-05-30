@@ -431,3 +431,23 @@ h3 {
         max-width: 250px; /* Smallest chart size */
     }
 }
+
+/* New styles for user-created categories */
+.user-created .category-details {
+    position: relative;
+}
+
+.user-created-badge {
+    background-color: #a78bfa;
+    color: white;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    margin-left: 0.5rem;
+}
+
+/* Hide empty chart message */
+.chart-card p {
+    text-align: center;
+    color: #6b7280;
+}

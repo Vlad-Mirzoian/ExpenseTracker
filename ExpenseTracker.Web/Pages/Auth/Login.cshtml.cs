@@ -50,7 +50,7 @@ namespace ExpenseTracker.Web.Pages.Auth
                     SameSite = SameSiteMode.Strict,
                     Path = "/"
                 });
-                return Redirect("/Index");
+                return Redirect("/MainPage");
             }
             else
             {

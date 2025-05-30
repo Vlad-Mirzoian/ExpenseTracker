@@ -1,8 +1,7 @@
-﻿using ExpenseTracker.API.Interface;
-using ExpenseTracker.Data.Model;
+﻿using ExpenseTracker.Data.Model;
 using Microsoft.EntityFrameworkCore;
 
-namespace ExpenseTracker.API.Repository
+namespace ExpenseTracker.API
 {
     public class UserRepository: GenericRepository<User>,IUserRepository
     {

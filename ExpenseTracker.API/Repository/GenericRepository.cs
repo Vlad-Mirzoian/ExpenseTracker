@@ -1,8 +1,7 @@
-﻿using ExpenseTracker.API.Interface;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 
-namespace ExpenseTracker.API.Repository
+namespace ExpenseTracker.API
 {
     public class GenericRepository<T> : IGenericRepository<T> where T : class
     {

@@ -1,0 +1,44 @@
+﻿@page
+@model ExpenseTracker.Web.Pages.CreateCategoryModel
+
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Створити категорію - Трекер витрат</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-brand">Трекер витрат</div>
+        <a href="@Url.Page("/MainPage")" class="btn btn-secondary">Назад</a>
+    </nav>
+    <main class="content">
+        <h2>Створити нову категорію</h2>
+        <form method="post">
+            @Html.AntiForgeryToken()
+            <div class="form-group">
+                <label for="Name">Назва категорії</label>
+                <input type="text" id="Name" name="Name" required />
+            </div>
+            <div class="form-group">
+                <label for="ParentCategoryIds">Батьківські категорії (утримуйте Ctrl для вибору кількох)</label>
+                <select id="ParentCategoryIds" name="ParentCategoryIds" multiple>
+                    @foreach (var category in Model.Categories)
+                    {
+                        <option value="@category.Id">@category.Name</option>
+                    }
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Створити</button>
+            @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+            {
+                <p class="error">@Model.ErrorMessage</p>
+            }
+        </form>
+    </main>
+</body>
+</html>
