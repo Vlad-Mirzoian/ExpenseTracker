@@ -18,7 +18,7 @@ namespace ExpenseTracker.API
         }
 
         [HttpGet("transactions/{userId}")]
-        public async Task<ActionResult<List<Transaction>>> GetMonobankTransactions(Guid userId)
+        public async Task<ActionResult<List<TransactionDto>>> GetMonobankTransactions(Guid userId)
         {
             try
             {
@@ -37,7 +37,26 @@ namespace ExpenseTracker.API
                 var toTimestamp = now.ToUnixTimeSeconds();
 
                 var transactions = await _monobankService.GetTransactionsAsync(user.Id, user.Token, fromTimestamp, toTimestamp);
-                return Ok(transactions);
+                var transactionDtos = transactions.Select(t => new TransactionDto
+                {
+                    Id = t.Id,
+                    Description = t.Description,
+                    Amount = t.Amount,
+                    Date = t.Date,
+                    CategoryId = t.CategoryId,
+                    CategoryName = t.Category?.Name,
+                    UserId = t.UserId,
+                    TransactionType = t.TransactionType,
+                    MccCode = t.MccCode,
+                    IsManuallyCategorized = t.IsManuallyCategorized,
+                    TransactionCategories = t.TransactionCategories.Select(tc => new TransactionCategoryDto
+                    {
+                        CategoryId = tc.CategoryId,
+                        CategoryName = tc.Category?.Name,
+                        IsBaseCategory = tc.IsBaseCategory
+                    }).ToList()
+                }).ToList();
+                return Ok(transactionDtos);
             }
             catch (Exception ex)
             {

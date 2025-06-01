@@ -22,11 +22,12 @@ namespace ExpenseTracker.API
             if (!mccCode.HasValue || mccCode == 0)
             {
                 _logger.LogDebug("MCC is null or 0, using default category");
-                return await GetOtherCategoryIdAsync();
+                return (await _categoryRepository.GetDefaultCategoryAsync())?.Id ?? throw new InvalidOperationException("Default category not found.");
             }
 
-            var categories = await _categoryRepository.GetAllAsync();
-            var matchingCategory = categories.FirstOrDefault(c => c.MccCodesArray.Contains(mccCode.Value));
+            var categories = await _categoryRepository.GetAllAsync(null); // Built-in only
+            var matchingCategory = categories.FirstOrDefault(c =>
+                !string.IsNullOrEmpty(c.MccCodes) && c.MccCodesArray.Contains(mccCode.Value));
 
             if (matchingCategory != null)
             {
@@ -35,18 +36,7 @@ namespace ExpenseTracker.API
             }
 
             _logger.LogDebug("No matching category for MCC {MccCode}, using default", mccCode);
-            return await GetOtherCategoryIdAsync();
-        }
-
-        private async Task<Guid> GetOtherCategoryIdAsync()
-        {
-            var otherCategory = await _categoryRepository.GetByNameAsync("Інше");
-            if (otherCategory == null)
-            {
-                _logger.LogError("Category 'Інше' not found");
-                throw new InvalidOperationException("Category 'Інше' not found.");
-            }
-            return otherCategory.Id;
+            return (await _categoryRepository.GetDefaultCategoryAsync())?.Id ?? throw new InvalidOperationException("Default category not found.");
         }
     }
 }

@@ -12,7 +12,8 @@ namespace ExpenseTracker
         public DbSet<User> Users { get; set; }
         public DbSet<Transaction> Transactions { get; set; }
         public DbSet<Category> Categories { get; set; }
-        public DbSet<CategoryParents> CategoryParents { get; set; }
+        public DbSet<CategoryRelationship> CategoryRelationships { get; set; }
+        public DbSet<TransactionCategory> TransactionCategories { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -22,20 +23,40 @@ namespace ExpenseTracker
                 .Property(c => c.MccCodes)
                 .HasDefaultValue("[]");
 
-            modelBuilder.Entity<CategoryParents>()
-                .HasKey(cp => new { cp.CategoryId, cp.ParentCategoryId });
+            modelBuilder.Entity<CategoryRelationship>()
+                .HasKey(cr => new { cr.CustomCategoryId, cr.BaseCategoryId });
 
-            modelBuilder.Entity<CategoryParents>()
-                .HasOne(cp => cp.Category)
+            modelBuilder.Entity<CategoryRelationship>()
+                .HasOne(cr => cr.CustomCategory)
                 .WithMany()
-                .HasForeignKey(cp => cp.CategoryId)
+                .HasForeignKey(cr => cr.CustomCategoryId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<CategoryParents>()
-                .HasOne(cp => cp.ParentCategory)
+            modelBuilder.Entity<CategoryRelationship>()
+                .HasOne(cr => cr.BaseCategory)
                 .WithMany()
-                .HasForeignKey(cp => cp.ParentCategoryId)
+                .HasForeignKey(cr => cr.BaseCategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<TransactionCategory>()
+                .HasKey(tc => new { tc.TransactionId, tc.CategoryId });
+
+            modelBuilder.Entity<TransactionCategory>()
+                .HasOne(tc => tc.Transaction)
+                .WithMany(t => t.TransactionCategories)
+                .HasForeignKey(tc => tc.TransactionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<TransactionCategory>()
+                .HasOne(tc => tc.Category)
+                .WithMany()
+                .HasForeignKey(tc => tc.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Transaction>()
+                .HasOne(t => t.Category)
+                .WithMany()
+                .HasForeignKey(t => t.CategoryId);
         }
     }
 }

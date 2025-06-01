@@ -7,6 +7,7 @@ namespace ExpenseTracker.API
     {
         private readonly HttpClient _httpClient;
         private readonly ITransactionRepository _transactionRepository;
+        private readonly ICategoryRepository _categoryRepository;
         private readonly TransactionCategorizationService _categorizationService;
         private readonly ILogger<MonobankService> _logger;
         private const string BaseUrl = "https://api.monobank.ua";
@@ -14,16 +15,18 @@ namespace ExpenseTracker.API
         public MonobankService(
             HttpClient httpClient,
             ITransactionRepository transactionRepository,
+            ICategoryRepository categoryRepository,
             TransactionCategorizationService categorizationService,
             ILogger<MonobankService> logger)
         {
             _httpClient = httpClient;
             _transactionRepository = transactionRepository;
+            _categoryRepository = categoryRepository;
             _categorizationService = categorizationService;
             _logger = logger;
         }
 
-        public async Task<List<Transaction>> GetTransactionsAsync(Guid userId, string token, long fromTimestamp, long toTimestamp)
+        public async Task<IEnumerable<Transaction>> GetTransactionsAsync(Guid userId, string token, long fromTimestamp, long toTimestamp)
         {
             _logger.LogInformation("Fetching transactions for user {UserId} from {FromTimestamp} to {ToTimestamp}", userId, fromTimestamp, toTimestamp);
 
@@ -94,11 +97,9 @@ namespace ExpenseTracker.API
                         Date = transactionDate,
                         MccCode = t.MccCode,
                         TransactionType = t.Amount < 0 ? "Expense" : "Income",
-                        IsManuallyCategorized = false
+                        IsManuallyCategorized = false,
+                        CategoryId = await _categorizationService.CategorizeTransactionAsync(t.MccCode)
                     };
-
-                    transaction.CategoryId = await _categorizationService.CategorizeTransactionAsync(t.MccCode);
-                    _logger.LogDebug("Assigned category ID {CategoryId} for transaction {Description}", transaction.CategoryId, transaction.Description);
 
                     transactionsToSave.Add(transaction);
                 }
@@ -106,10 +107,7 @@ namespace ExpenseTracker.API
                 if (transactionsToSave.Any())
                 {
                     _logger.LogInformation("Saving {Count} new transactions", transactionsToSave.Count);
-                    foreach (var transaction in transactionsToSave)
-                    {
-                        await _transactionRepository.AddAsync(transaction);
-                    }
+                    await _transactionRepository.AddRangeAsync(transactionsToSave);
                     _logger.LogInformation("Saved transactions successfully");
                 }
 

@@ -6,11 +6,12 @@ using System.Threading.Tasks;
 
 namespace ExpenseTracker.Data.Model
 {
-    public class CategoryParents
+    public class TransactionCategory
     {
+        public Guid TransactionId { get; set; }
         public Guid CategoryId { get; set; }
+        public bool IsBaseCategory { get; set; }
+        public Transaction Transaction { get; set; }
         public Category Category { get; set; }
-        public Guid ParentCategoryId { get; set; }
-        public Category ParentCategory { get; set; }
     }
 }

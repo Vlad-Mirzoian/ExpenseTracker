@@ -5,7 +5,10 @@ namespace ExpenseTracker.API
     public interface ICategoryRepository : IGenericRepository<Category>
     {
         Task<Category> GetDefaultCategoryAsync();
-        Task AddParentRelationshipAsync(Guid categoryId, Guid parentCategoryId);
-        Task RemoveParentRelationshipsAsync(Guid categoryId);
+        Task AddRelationshipAsync(Guid customCategoryId, Guid baseCategoryId);
+        Task RemoveRelationshipsAsync(Guid customCategoryId);
+        Task<List<Category>> GetAllAsync(Guid? userId);
+        Task<List<CategoryRelationship>> GetRelationshipsByBaseCategoryIdAsync(Guid baseCategoryId);
+        Task<List<Transaction>> GetTransactionsByCategoryIdAsync(Guid categoryId, Guid userId);
     }
 }

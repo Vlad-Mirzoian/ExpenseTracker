@@ -9,7 +9,7 @@ public class Transaction
     [Required]
     public string Description { get; set; }
     public decimal Amount { get; set; }
-    public Guid CategoryId { get; set; }
+    public Guid CategoryId { get; set; } // Base (built-in) category
     public Category Category { get; set; }
     private DateTime _date;
     public DateTime Date
@@ -18,6 +18,7 @@ public class Transaction
         set => _date = value.Kind == DateTimeKind.Unspecified ? value.ToUniversalTime() : value;
     }
     public int? MccCode { get; set; }
-    public string TransactionType { get; set; } // "Expense" or "Income"
-    public bool IsManuallyCategorized { get; set; } // Protects manual category assignments
+    public string TransactionType { get; set; }
+    public bool IsManuallyCategorized { get; set; }
+    public List<TransactionCategory> TransactionCategories { get; set; } = new List<TransactionCategory>();
 }

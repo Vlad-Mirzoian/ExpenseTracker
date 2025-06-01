@@ -45,31 +45,60 @@
                         <div class="category-buttons">
                             <form method="get" action="/MainPage">
                                 <input type="hidden" name="id" value="@category.Id" />
+                                <input type="hidden" name="pageNumber" value="1" />
                                 <button type="submit" class="category-btn">@category.Name</button>
                             </form>
                         </div>
                     </li>
                 }
                 <li>
-                    <a href="@Url.Page("/CreateCategory")" class="category-btn">+ Додати категорію</a>
+                    <h4>Створити категорію</h4>
+                    <form method="post" action="?handler=CreateCategory">
+                        @Html.AntiForgeryToken()
+                        <div class="form-group">
+                            <label for="NewCategoryName">Назва:</label>
+                            <input type="text" id="NewCategoryName" name="NewCategoryName" class="form-control" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="BaseCategoryIds">Базові категорії:</label>
+                            <select id="BaseCategoryIds" name="BaseCategoryIds" multiple class="form-control">
+                                @foreach (var category in Model.Categories.Where(c => c.IsBuiltIn))
+                                {
+                                    <option value="@category.Id">@category.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Створити</button>
+                    </form>
+                    @if (!string.IsNullOrEmpty(Model.CreateCategoryError))
+                    {
+                        <p class="error">@Model.CreateCategoryError</p>
+                    }
                 </li>
             </ul>
         </aside>
 
         <main class="content">
             <h2>Огляд фінансів</h2>
+            <div class="chart-controls">
+                <label for="chartMode">Режим відображення:</label>
+                <select id="chartMode" onchange="window.location.href='/MainPage?chartMode=' + this.value + '&id=@(Request.Query["id"])&pageNumber=@Model.PageNumber'">
+                    <option value="BuiltIn" @(Model.ChartMode == "BuiltIn" ? "selected" : "")>Базові категорії</option>
+                    <option value="Custom" @(Model.ChartMode == "Custom" ? "selected" : "")>Користувацькі категорії</option>
+                </select>
+            </div>
             <div class="chart-cards">
                 @if (Model.ExpenseChartData.Any() && Model.ExpenseChartData.Any(d => d.TotalAmount != 0))
                 {
                     <div class="chart-card">
-                        <h3>Витрати за категоріями</h3>
+                        <h3>Витрати за @(Model.ChartMode == "BuiltIn" ? "базовими" : "користувацькими") категоріями</h3>
                         <canvas id="expenseChart"></canvas>
                     </div>
                 }
                 @if (Model.IncomeChartData.Any() && Model.IncomeChartData.Any(d => d.TotalAmount != 0))
                 {
                     <div class="chart-card">
-                        <h3>Надходження за категоріями</h3>
+                        <h3>Надходження за @(Model.ChartMode == "BuiltIn" ? "базовими" : "користувацькими") категоріями</h3>
                         <canvas id="incomeChart"></canvas>
                     </div>
                 }
@@ -77,29 +106,47 @@
             @if (Request.Query.ContainsKey("id"))
             {
                 <div class="transaction-list">
-                    <h3>Транзакції</h3>
-                    @foreach (var transaction in Model.Transactions)
+                    <h3>Транзакції (Сторінка @Model.PageNumber)</h3>
+                    @if (!Model.Transactions.Any())
                     {
-                        <div class="transaction-card">
-                            <div class="transaction-icon">
-                                <i class="fas fa-money-bill-wave"></i>
+                        <p>Транзакції відсутні.</p>
+                    }
+                    else
+                    {
+                        @foreach (var transaction in Model.Transactions)
+                        {
+                            <div class="transaction-card">
+                                <div class="transaction-icon">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                </div>
+                                <div class="transaction-details">
+                                    <p><strong>@transaction.Description</strong></p>
+                                    <p>@transaction.Amount.ToString("F2") грн</p>
+                                    <p>@transaction.Date.ToString("dd.MM.yyyy")</p>
+                                    <p>Категорії: @string.Join(", ", transaction.TransactionCategories.Select(tc => tc.CategoryName + (tc.IsBaseCategory ? " (Базова)" : "")))</p>
+                                    <form method="post" action="?handler=UpdateTransactionCategory&pageNumber=@Model.PageNumber">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="TransactionId" value="@transaction.Id" />
+                                        <select name="CategoryId" onchange="this.form.submit()">
+                                            @foreach (var category in Model.Categories.Where(c => c.IsBuiltIn))
+                                            {
+                                                <option value="@category.Id" @(category.Id == transaction.CategoryId ? "selected" : "")>@category.Name</option>
+                                            }
+                                        </select>
+                                    </form>
+                                </div>
                             </div>
-                            <div class="transaction-details">
-                                <p><strong>@transaction.Description</strong></p>
-                                <p>@transaction.Amount.ToString("F2") грн</p>
-                                <p>@transaction.Date.ToString("dd.MM.yyyy")</p>
-                                <form method="post" action="?handler=UpdateTransactionCategory">
-                                    @Html.AntiForgeryToken()
-                                    <input type="hidden" name="TransactionId" value="@transaction.Id" />
-                                    <select name="CategoryId" onchange="this.form.submit()">
-                                        @foreach (var category in Model.Categories)
-                                        {
-                                            <option value="@category.Id" @(category.Id == transaction.CategoryId ? "selected" : "")>@category.Name</option>
-                                        }
-                                    </select>
-                                </form>
+                        }
+                        @if (Model.HasMoreTransactions)
+                        {
+                            <div class="load-more">
+                                <a href="/MainPage?id=@Request.Query["id"]&pageNumber=@(Model.PageNumber + 1)&chartMode=@Model.ChartMode" class="btn btn-primary">Завантажити ще</a>
                             </div>
-                        </div>
+                        }
+                        else
+                        {
+                            <p class="no-more">Більше транзакцій немає.</p>
+                        }
                     }
                     @if (!string.IsNullOrEmpty(Model.UpdateCategoryError))
                     {
@@ -168,7 +215,7 @@
                         datasets: [{
                             label: 'Витрати',
                             data: expenseAmounts,
-                            backgroundColor: ['#f87171', '#2dd4bf', '#a78bfa', '#facc15', '#4ade80'],
+                            backgroundColor: ['#e53e3e', '#38b2ac', '#805ad5', '#f6e05e', '#48bb78', '#ed8936'],
                             hoverOffset: 12
                         }]
                     },
@@ -192,14 +239,14 @@
             var incomeAmounts = @Html.Raw(Json.Serialize(Model.IncomeChartData.Select(t => t.TotalAmount)));
             var incomeCtx = document.getElementById('incomeChart');
             if (incomeCtx) {
-                new Chart(incomeCtx.getContext('2d'), {
+                new Chart(incomeCtx, {
                     type: 'pie',
                     data: {
                         labels: incomeLabels,
                         datasets: [{
                             label: 'Надходження',
                             data: incomeAmounts,
-                            backgroundColor: ['#60aedd', '#34d399', '#f472b6', '#ffab91', '#6ee7b7'],
+                            backgroundColor: ['#3182ce', '#38a169', '#d53f8c', '#ed8936', '#48bb78', '#b794f4'],
                             hoverOffset: 12
                         }]
                     },
@@ -222,11 +269,6 @@
 
         function toggleSidebar() {
             document.querySelector('.sidebar').classList.toggle('active');
-        }
-
-        function logSync() {
-            console.log('Initiating Monobank sync for user ID: @Model.UserInformation.Id');
-            console.log('Time: ' + new Date().toLocaleString());
         }
     </script>
 </body>

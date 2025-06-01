@@ -10,11 +10,14 @@ namespace ExpenseTracker.API
     public class TransactionController : ControllerBase
     {
         private readonly ITransactionRepository _transactionRepository;
+        private readonly ICategoryRepository _categoryRepository;
 
         public TransactionController(
-            ITransactionRepository transactionRepository)
+            ITransactionRepository transactionRepository,
+            ICategoryRepository categoryRepository)
         {
             _transactionRepository = transactionRepository ?? throw new ArgumentNullException(nameof(transactionRepository));
+            _categoryRepository = categoryRepository ?? throw new ArgumentNullException(nameof(categoryRepository));
         }
 
         [HttpGet]
@@ -33,7 +36,13 @@ namespace ExpenseTracker.API
                 UserId = t.UserId,
                 TransactionType = t.TransactionType,
                 MccCode = t.MccCode,
-                IsManuallyCategorized = t.IsManuallyCategorized
+                IsManuallyCategorized = t.IsManuallyCategorized,
+                TransactionCategories = t.TransactionCategories.Select(tc => new TransactionCategoryDto
+                {
+                    CategoryId = tc.CategoryId,
+                    CategoryName = tc.Category?.Name,
+                    IsBaseCategory = tc.IsBaseCategory
+                }).ToList()
             }).ToList();
             return Ok(transactionDtos);
         }
@@ -64,31 +73,40 @@ namespace ExpenseTracker.API
                 UserId = transaction.UserId,
                 TransactionType = transaction.TransactionType,
                 MccCode = transaction.MccCode,
-                IsManuallyCategorized = transaction.IsManuallyCategorized
+                IsManuallyCategorized = transaction.IsManuallyCategorized,
+                TransactionCategories = transaction.TransactionCategories.Select(tc => new TransactionCategoryDto
+                {
+                    CategoryId = tc.CategoryId,
+                    CategoryName = tc.Category?.Name,
+                    IsBaseCategory = tc.IsBaseCategory
+                }).ToList()
             };
             return Ok(transactionDto);
         }
 
         [HttpGet("category/{categoryId}")]
-        public async Task<ActionResult<List<TransactionDto>>> GetTransactionByCategory(Guid categoryId)
+        public async Task<ActionResult<IEnumerable<TransactionDto>>> GetTransactionByCategory(Guid categoryId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 15)
         {
-            var transactions = await _transactionRepository.GetTransactionsByCategoriesAsync(categoryId);
-            var currentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
-            var transactionDtos = transactions
-                .Where(t => t.UserId == currentUserId)
-                .Select(t => new TransactionDto
+            var transactions = await _transactionRepository.GetTransactionsByCategoriesAsync(categoryId, pageNumber, pageSize);
+            var transactionDtos = transactions.Select(t => new TransactionDto
+            {
+                Id = t.Id,
+                Description = t.Description,
+                Amount = t.Amount,
+                Date = t.Date,
+                CategoryId = t.CategoryId,
+                CategoryName = t.Category?.Name,
+                UserId = t.UserId,
+                TransactionType = t.TransactionType,
+                MccCode = t.MccCode,
+                IsManuallyCategorized = t.IsManuallyCategorized,
+                TransactionCategories = t.TransactionCategories.Select(tc => new TransactionCategoryDto
                 {
-                    Id = t.Id,
-                    Description = t.Description,
-                    Amount = t.Amount,
-                    Date = t.Date,
-                    CategoryId = t.CategoryId,
-                    CategoryName = t.Category?.Name,
-                    UserId = t.UserId,
-                    TransactionType = t.TransactionType,
-                    MccCode = t.MccCode,
-                    IsManuallyCategorized = t.IsManuallyCategorized
-                }).ToList();
+                    CategoryId = tc.CategoryId,
+                    CategoryName = tc.Category?.Name,
+                    IsBaseCategory = tc.IsBaseCategory
+                }).ToList()
+            }).ToList();
             return Ok(transactionDtos);
         }
 
@@ -111,6 +129,12 @@ namespace ExpenseTracker.API
                 return BadRequest("Category ID cannot be empty.");
             }
 
+            var category = await _categoryRepository.GetByIdAsync(createDto.CategoryId);
+            if (category != null && !category.IsBuiltIn)
+            {
+                return BadRequest("Base category must be built-in.");
+            }
+
             var transaction = new Transaction
             {
                 Id = Guid.NewGuid(),
@@ -121,7 +145,7 @@ namespace ExpenseTracker.API
                 UserId = createDto.UserId,
                 TransactionType = createDto.TransactionType,
                 MccCode = createDto.MccCode,
-                IsManuallyCategorized = createDto.IsManuallyCategorized
+                IsManuallyCategorized = true
             };
 
             await _transactionRepository.AddAsync(transaction);
@@ -133,10 +157,17 @@ namespace ExpenseTracker.API
                 Amount = transaction.Amount,
                 Date = transaction.Date,
                 CategoryId = transaction.CategoryId,
+                CategoryName = transaction.Category?.Name,
                 UserId = transaction.UserId,
                 TransactionType = transaction.TransactionType,
                 MccCode = transaction.MccCode,
-                IsManuallyCategorized = transaction.IsManuallyCategorized
+                IsManuallyCategorized = transaction.IsManuallyCategorized,
+                TransactionCategories = transaction.TransactionCategories.Select(tc => new TransactionCategoryDto
+                {
+                    CategoryId = tc.CategoryId,
+                    CategoryName = tc.Category?.Name,
+                    IsBaseCategory = tc.IsBaseCategory
+                }).ToList()
             };
 
             return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, transactionDto);
@@ -170,6 +201,12 @@ namespace ExpenseTracker.API
             if (updateDto.CategoryId == Guid.Empty)
             {
                 return BadRequest("Category ID cannot be empty.");
+            }
+
+            var category = await _categoryRepository.GetByIdAsync(updateDto.CategoryId);
+            if (category != null && !category.IsBuiltIn)
+            {
+                return BadRequest("Base category must be built-in.");
             }
 
             transaction.Description = updateDto.Description;
@@ -208,6 +245,12 @@ namespace ExpenseTracker.API
                 return BadRequest("Category ID cannot be empty.");
             }
 
+            var category = await _categoryRepository.GetByIdAsync(request.CategoryId);
+            if (category != null && !category.IsBuiltIn)
+            {
+                return BadRequest("Base category must be built-in.");
+            }
+
             var validTransactionIds = await _transactionRepository.GetValidExpenseTransactionIdsAsync(request.TransactionIds);
             if (validTransactionIds.Count != request.TransactionIds.Count)
             {
@@ -243,49 +286,5 @@ namespace ExpenseTracker.API
             await _transactionRepository.DeleteAsync(id);
             return NoContent();
         }
-    }
-
-    public class TransactionDto
-    {
-        public Guid Id { get; set; }
-        public string Description { get; set; }
-        public decimal Amount { get; set; }
-        public DateTime Date { get; set; }
-        public Guid CategoryId { get; set; }
-        public string CategoryName { get; set; }
-        public Guid UserId { get; set; }
-        public string TransactionType { get; set; }
-        public int? MccCode { get; set; }
-        public bool IsManuallyCategorized { get; set; }
-    }
-
-    public class CreateTransactionDto
-    {
-        public string Description { get; set; }
-        public decimal Amount { get; set; }
-        public DateTime Date { get; set; }
-        public Guid CategoryId { get; set; }
-        public Guid UserId { get; set; }
-        public string TransactionType { get; set; }
-        public int? MccCode { get; set; }
-        public bool IsManuallyCategorized { get; set; }
-    }
-
-    public class UpdateTransactionDto
-    {
-        public Guid Id { get; set; }
-        public string Description { get; set; }
-        public decimal Amount { get; set; }
-        public DateTime Date { get; set; }
-        public Guid CategoryId { get; set; }
-        public string TransactionType { get; set; }
-        public int? MccCode { get; set; }
-        public bool IsManuallyCategorized { get; set; }
-    }
-
-    public class UpdateTransactionCategoryRequest
-    {
-        public Guid CategoryId { get; set; }
-        public List<Guid> TransactionIds { get; set; }
     }
 }
