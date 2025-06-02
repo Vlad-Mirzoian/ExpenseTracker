@@ -8,9 +8,7 @@ namespace ExpenseTracker.Data.Model
         public Guid Id { get; set; } = new Guid();
         [Required]
         public string Login { get; set; }
-
         public string PasswordHash { get; set; }
-
-        public string Token { get; set; }  // API-ключ от Monobank
+        public string Token { get; set; }
     }
 }

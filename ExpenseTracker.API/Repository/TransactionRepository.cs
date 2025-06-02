@@ -67,13 +67,11 @@ namespace ExpenseTracker.API
                     .SetProperty(t => t.CategoryId, categoryId)
                     .SetProperty(t => t.IsManuallyCategorized, true));
 
-            // Update TransactionCategories for base category
             await _context.TransactionCategories
                 .Where(tc => transactionIds.Contains(tc.TransactionId) && tc.IsBaseCategory)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(tc => tc.CategoryId, categoryId));
 
-            // Add custom categories based on new base category
             var relationships = await _context.CategoryRelationships
                 .Where(cr => cr.BaseCategoryId == categoryId)
                 .ToListAsync();

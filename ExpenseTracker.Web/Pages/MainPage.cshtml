@@ -46,22 +46,24 @@
                             <form method="get" action="/MainPage">
                                 <input type="hidden" name="id" value="@category.Id" />
                                 <input type="hidden" name="pageNumber" value="1" />
-                                <button type="submit" class="category-btn">@category.Name</button>
+                                <button type="submit" class="category-btn" aria-label="Показати транзакції для @category.Name">@category.Name</button>
                             </form>
                         </div>
                     </li>
                 }
                 <li>
-                    <h4>Створити категорію</h4>
-                    <form method="post" action="?handler=CreateCategory">
+                    <button class="btn btn-primary toggle-create-category" onclick="toggleCreateCategoryForm()" aria-label="Показати форму створення категорії">
+                        Створити нову категорію
+                    </button>
+                    <form method="post" action="?handler=CreateCategory" class="create-category-form" style="display: none;">
                         @Html.AntiForgeryToken()
                         <div class="form-group">
                             <label for="NewCategoryName">Назва:</label>
-                            <input type="text" id="NewCategoryName" name="NewCategoryName" class="form-control" required />
+                            <input type="text" id="NewCategoryName" name="NewCategoryName" class="form-control" required aria-required="true" />
                         </div>
                         <div class="form-group">
                             <label for="BaseCategoryIds">Базові категорії:</label>
-                            <select id="BaseCategoryIds" name="BaseCategoryIds" multiple class="form-control">
+                            <select id="BaseCategoryIds" name="BaseCategoryIds" multiple class="form-control" aria-label="Виберіть базові категорії">
                                 @foreach (var category in Model.Categories.Where(c => c.IsBuiltIn))
                                 {
                                     <option value="@category.Id">@category.Name</option>
@@ -70,9 +72,9 @@
                         </div>
                         <button type="submit" class="btn btn-primary">Створити</button>
                     </form>
-                    @if (!string.IsNullOrEmpty(Model.CreateCategoryError))
+                    @if (!string.IsNullOrEmpty(Model.ModelError))
                     {
-                        <p class="error">@Model.CreateCategoryError</p>
+                        <p class="error">@Model.ModelError</p>
                     }
                 </li>
             </ul>
@@ -80,27 +82,52 @@
 
         <main class="content">
             <h2>Огляд фінансів</h2>
-            <div class="chart-controls">
-                <label for="chartMode">Режим відображення:</label>
-                <select id="chartMode" onchange="window.location.href='/MainPage?chartMode=' + this.value + '&id=@(Request.Query["id"])&pageNumber=@Model.PageNumber'">
-                    <option value="BuiltIn" @(Model.ChartMode == "BuiltIn" ? "selected" : "")>Базові категорії</option>
-                    <option value="Custom" @(Model.ChartMode == "Custom" ? "selected" : "")>Користувацькі категорії</option>
-                </select>
-            </div>
             <div class="chart-cards">
-                @if (Model.ExpenseChartData.Any() && Model.ExpenseChartData.Any(d => d.TotalAmount != 0))
+                @if (Request.Query.ContainsKey("id"))
                 {
-                    <div class="chart-card">
-                        <h3>Витрати за @(Model.ChartMode == "BuiltIn" ? "базовими" : "користувацькими") категоріями</h3>
-                        <canvas id="expenseChart"></canvas>
-                    </div>
+                    @if (Model.ExpenseDescriptionChartData.Any() && Model.ExpenseDescriptionChartData.Any(d => d.TotalAmount != 0))
+                    {
+                        <div class="chart-card">
+                            <h3>Витрати за описом</h3>
+                            <canvas id="expenseDescriptionChart"></canvas>
+                        </div>
+                    }
+                    @if (Model.IncomeDescriptionChartData.Any() && Model.IncomeDescriptionChartData.Any(d => d.TotalAmount != 0))
+                    {
+                        <div class="chart-card">
+                            <h3>Надходження за описом</h3>
+                            <canvas id="incomeDescriptionChart"></canvas>
+                        </div>
+                    }
+                    @if (!Model.ExpenseDescriptionChartData.Any(d => d.TotalAmount != 0) && !Model.IncomeDescriptionChartData.Any(d => d.TotalAmount != 0))
+                    {
+                        <p>Дані для графіків за описом відсутні.</p>
+                    }
                 }
-                @if (Model.IncomeChartData.Any() && Model.IncomeChartData.Any(d => d.TotalAmount != 0))
+                else
                 {
-                    <div class="chart-card">
-                        <h3>Надходження за @(Model.ChartMode == "BuiltIn" ? "базовими" : "користувацькими") категоріями</h3>
-                        <canvas id="incomeChart"></canvas>
-                    </div>
+                    @if (Model.CategorySpending.Any() && Model.CategorySpending.Any(d => d.TotalAmount != 0))
+                    {
+                        <div class="chart-card">
+                            <h3>Витрати за базовими категоріями</h3>
+                            <canvas id="expenseChart"></canvas>
+                        </div>
+                    }
+                    else
+                    {
+                        <p>Дані для графіку витрат відсутні.</p>
+                    }
+                    @if (Model.IncomeByCategory.Any() && Model.IncomeByCategory.Any(d => d.TotalAmount != 0))
+                    {
+                        <div class="chart-card">
+                            <h3>Надходження за базовими категоріями</h3>
+                            <canvas id="incomeChart"></canvas>
+                        </div>
+                    }
+                    else
+                    {
+                        <p>Дані для графіку надходжень відсутні.</p>
+                    }
                 }
             </div>
             @if (Request.Query.ContainsKey("id"))
@@ -127,7 +154,7 @@
                                     <form method="post" action="?handler=UpdateTransactionCategory&pageNumber=@Model.PageNumber">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="TransactionId" value="@transaction.Id" />
-                                        <select name="CategoryId" onchange="this.form.submit()">
+                                        <select name="CategoryId" onchange="this.form.submit()" aria-label="Виберіть нову категорію для транзакції">
                                             @foreach (var category in Model.Categories.Where(c => c.IsBuiltIn))
                                             {
                                                 <option value="@category.Id" @(category.Id == transaction.CategoryId ? "selected" : "")>@category.Name</option>
@@ -140,7 +167,7 @@
                         @if (Model.HasMoreTransactions)
                         {
                             <div class="load-more">
-                                <a href="/MainPage?id=@Request.Query["id"]&pageNumber=@(Model.PageNumber + 1)&chartMode=@Model.ChartMode" class="btn btn-primary">Завантажити ще</a>
+                                <a href="/MainPage?id=@Request.Query["id"]&pageNumber=@(Model.PageNumber + 1)" class="btn btn-primary" aria-label="Завантажити ще">Завантажити ще</a>
                             </div>
                         }
                         else
@@ -148,9 +175,9 @@
                             <p class="no-more">Більше транзакцій немає.</p>
                         }
                     }
-                    @if (!string.IsNullOrEmpty(Model.UpdateCategoryError))
+                    @if (!string.IsNullOrEmpty(Model.ModelError))
                     {
-                        <p class="error">@Model.UpdateCategoryError</p>
+                        <p class="error">@Model.ModelError</p>
                     }
                 </div>
             }
@@ -172,7 +199,7 @@
                                         <span class="user-created-badge">Користувацька</span>
                                     }
                                 </p>
-                                <p>@item.TotalSpending.ToString("F2") грн</p>
+                                <p>@item.TotalAmount.ToString("F2") грн</p>
                                 <p>@item.Percentage.ToString("F1")% від загальних витрат</p>
                             </div>
                         </div>
@@ -192,7 +219,7 @@
                                         <span class="user-created-badge">Користувацька</span>
                                     }
                                 </p>
-                                <p>@item.TotalSpending.ToString("F2") грн</p>
+                                <p>@item.TotalAmount.ToString("F2") грн</p>
                                 <p>@item.Percentage.ToString("F1")% від загальних надходжень</p>
                             </div>
                         </div>
@@ -203,73 +230,144 @@
     </div>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            var expenseLabels = @Html.Raw(Json.Serialize(Model.ExpenseChartData.Select(t => t.Label)));
-            var expenseAmounts = @Html.Raw(Json.Serialize(Model.ExpenseChartData.Select(t => t.TotalAmount)));
-            var expenseCtx = document.getElementById('expenseChart');
-            if (expenseCtx) {
-                new Chart(expenseCtx.getContext('2d'), {
-                    type: 'pie',
-                    data: {
-                        labels: expenseLabels,
-                        datasets: [{
-                            label: 'Витрати',
-                            data: expenseAmounts,
-                            backgroundColor: ['#e53e3e', '#38b2ac', '#805ad5', '#f6e05e', '#48bb78', '#ed8936'],
-                            hoverOffset: 12
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            legend: { position: 'bottom' },
-                            tooltip: {
-                                callbacks: {
-                                    label: function (tooltipItem) {
-                                        return tooltipItem.label + ': ' + tooltipItem.raw + ' грн';
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-
-            var incomeLabels = @Html.Raw(Json.Serialize(Model.IncomeChartData.Select(t => t.Label)));
-            var incomeAmounts = @Html.Raw(Json.Serialize(Model.IncomeChartData.Select(t => t.TotalAmount)));
-            var incomeCtx = document.getElementById('incomeChart');
-            if (incomeCtx) {
-                new Chart(incomeCtx, {
-                    type: 'pie',
-                    data: {
-                        labels: incomeLabels,
-                        datasets: [{
-                            label: 'Надходження',
-                            data: incomeAmounts,
-                            backgroundColor: ['#3182ce', '#38a169', '#d53f8c', '#ed8936', '#48bb78', '#b794f4'],
-                            hoverOffset: 12
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            legend: { position: 'top' },
-                            tooltip: {
-                                callbacks: {
-                                    label: function (tooltipItem) {
-                                        return tooltipItem.label + ': ' + tooltipItem.raw + ' грн';
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-        });
-
         function toggleSidebar() {
             document.querySelector('.sidebar').classList.toggle('active');
         }
+
+        function toggleCreateCategoryForm() {
+            const form = document.querySelector('.create-category-form');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const isCategorySelected = '@Request.Query.ContainsKey("id")' === 'True';
+
+            if (isCategorySelected) {
+                const expenseDescLabels = @Html.Raw(Json.Serialize(Model.ExpenseDescriptionChartData.Select(t => t.Description)));
+                const expenseDescAmounts = @Html.Raw(Json.Serialize(Model.ExpenseDescriptionChartData.Select(t => t.TotalAmount)));
+                const expenseDescCtx = document.getElementById('expenseDescriptionChart');
+                if (expenseDescCtx && expenseDescAmounts.some(amount => amount !== 0)) {
+                    new Chart(expenseDescCtx.getContext('2d'), {
+                        type: 'pie',
+                        data: {
+                            labels: expenseDescLabels,
+                            datasets: [{
+                                label: 'Витрати за описом',
+                                data: expenseDescAmounts,
+                                backgroundColor: ['#e53e3e', '#38b2ac', '#805ad5', '#f6e05e', '#48bb78', '#ed8936', '#3182ce', '#38a169', '#d53f8c', '#b794f4'],
+                                hoverOffset: 12
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { position: 'bottom' },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function (tooltipItem) {
+                                            return tooltipItem.label + ': ' + tooltipItem.raw + ' грн';
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                const incomeDescLabels = @Html.Raw(Json.Serialize(Model.IncomeDescriptionChartData.Select(t => t.Description)));
+                const incomeDescAmounts = @Html.Raw(Json.Serialize(Model.IncomeDescriptionChartData.Select(t => t.TotalAmount)));
+                const incomeDescCtx = document.getElementById('incomeDescriptionChart');
+                if (incomeDescCtx && incomeDescAmounts.some(amount => amount !== 0)) {
+                    new Chart(incomeDescCtx.getContext('2d'), {
+                        type: 'pie',
+                        data: {
+                            labels: incomeDescLabels,
+                            datasets: [{
+                                label: 'Надходження за описом',
+                                data: incomeDescAmounts,
+                                backgroundColor: ['#3182ce', '#38a169', '#d53f8c', '#ed8936', '#48bb78', '#b794f4'],
+                                hoverOffset: 12
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { position: 'bottom' },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function (tooltipItem) {
+                                            return tooltipItem.label + ': ' + tooltipItem.raw + ' грн';
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            } else {
+                const expenseLabels = @Html.Raw(Json.Serialize(Model.CategorySpending.Select(t => t.CategoryName)));
+                const expenseAmounts = @Html.Raw(Json.Serialize(Model.CategorySpending.Select(t => t.TotalAmount)));
+                const expenseCtx = document.getElementById('expenseChart');
+                if (expenseCtx && expenseAmounts.some(amount => amount !== 0)) {
+                    new Chart(expenseCtx.getContext('2d'), {
+                        type: 'pie',
+                        data: {
+                            labels: expenseLabels,
+                            datasets: [{
+                                label: 'Витрати',
+                                data: expenseAmounts,
+                                backgroundColor: ['#e53e3e', '#38b2ac', '#805ad5', '#f6e05e', '#48bb78', '#ed8936'],
+                                hoverOffset: 12
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { position: 'bottom' },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function (tooltipItem) {
+                                            return tooltipItem.label + ': ' + tooltipItem.raw + ' грн';
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                const incomeLabels = @Html.Raw(Json.Serialize(Model.IncomeByCategory.Select(t => t.CategoryName)));
+                const incomeAmounts = @Html.Raw(Json.Serialize(Model.IncomeByCategory.Select(t => t.TotalAmount)));
+                const incomeCtx = document.getElementById('incomeChart');
+                if (incomeCtx && incomeAmounts.some(amount => amount !== 0)) {
+                    new Chart(incomeCtx.getContext('2d'), {
+                        type: 'pie',
+                        data: {
+                            labels: incomeLabels,
+                            datasets: [{
+                                label: 'Надходження',
+                                data: incomeAmounts,
+                                backgroundColor: ['#3182ce', '#38a169', '#d53f8c', '#ed8936', '#48bb78', '#b794f4'],
+                                hoverOffset: 12
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { position: 'top' },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function (tooltipItem) {
+                                            return tooltipItem.label + ': ' + tooltipItem.raw + ' грн';
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        });
     </script>
 </body>
 </html>

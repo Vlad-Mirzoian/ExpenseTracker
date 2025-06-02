@@ -30,16 +30,14 @@ namespace ExpenseTracker.Web.Pages.Auth
         {
             var client = _httpClientFactory.CreateClient("ExpenseTrackerApi");
             Console.WriteLine("Login: ", Login,"Password: ", Password, "Token: ", Token);
-            // Создаем JSON-объект для регистрации
             var registerRequest = new { Login, Password, Token };
             var jsonContent = new StringContent(JsonSerializer.Serialize(registerRequest), Encoding.UTF8, "application/json");
 
-            // Отправляем POST-запрос с JSON
             var response = await client.PostAsync("https://localhost:7151/api/auth/register", jsonContent);
 
             if (response.IsSuccessStatusCode)
             {
-                return RedirectToPage("/Auth/Login");  // Переход на страницу входа после успешной регистрации
+                return RedirectToPage("/Auth/Login");
             }
             else
             {

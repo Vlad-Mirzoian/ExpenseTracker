@@ -28,7 +28,6 @@ namespace ExpenseTracker.API
             await _context.CategoryRelationships.AddAsync(relationship);
             await _context.SaveChangesAsync();
 
-            // Assign existing transactions to the new custom category
             var customCategory = await _context.Categories.FindAsync(customCategoryId);
             var baseTransactions = await _context.Transactions
                 .Where(t => t.CategoryId == baseCategoryId && t.UserId == customCategory.UserId)

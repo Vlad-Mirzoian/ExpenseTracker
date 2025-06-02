@@ -15,9 +15,9 @@ body {
 /* Layout */
 .grid-container {
     display: grid;
-    grid-template-columns: 250px minmax(0, 1fr); /* Fixed sidebar width */
+    grid-template-columns: 250px minmax(0, 1fr);
     min-height: 100vh;
-    gap: 0; /* Remove gap to avoid extra spacing */
+    gap: 0;
     width: 100%;
     max-width: 100vw;
     overflow-x: hidden;
@@ -78,7 +78,7 @@ body {
 /* Sidebar */
 .sidebar {
     background-color: #fff;
-    padding: 2rem 1.5rem;
+    padding: 2rem 1.5rem 3rem; /* Added bottom padding */
     border-right: 1px solid #e2e8f0;
     height: 100vh;
     position: fixed;
@@ -129,6 +129,10 @@ body {
         margin: 0.75rem 0;
     }
 
+        .categories li:last-child {
+            margin-bottom: 1.5rem; /* Extra margin for last item */
+        }
+
 .category-btn {
     width: 100%;
     padding: 0.75rem 1rem;
@@ -145,9 +149,20 @@ body {
         background-color: #e2e8f0;
     }
 
+.toggle-create-category {
+    width: 100%;
+    margin-top: 1rem;
+    margin-bottom: 1rem; /* Added bottom margin */
+}
+
+.create-category-form {
+    margin-top: 1rem;
+    margin-bottom: 1rem; /* Added bottom margin */
+}
+
 /* Content */
 .content {
-    grid-column: 2 / -1; /* Occupy second column */
+    grid-column: 2 / -1;
     padding: 2rem;
     display: flex;
     flex-direction: column;
@@ -156,7 +171,7 @@ body {
     width: 100%;
     visibility: visible;
     overflow-y: auto;
-    min-width: 0; /* Prevent shrinking */
+    min-width: 0;
 }
 
 @media (max-width: 1024px) {
@@ -196,41 +211,36 @@ h2 {
         min-width: 200px;
     }
 
-/* Контейнер карточек */
+/* Chart Cards */
 .chart-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Уменьшаем минимальную ширину карточек */
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 1.5rem;
     visibility: visible;
     min-height: 400px;
     width: 100%;
 }
 
-/* Одиночная карточка */
 .chart-card {
     background-color: #fff;
     padding: 1.5rem;
     border-radius: 8px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
     min-height: 400px;
-    width: 80%; /* Уменьшаем ширину карточки */
+    width: 80%;
 }
 
-    /* Размеры графика */
     .chart-card canvas {
         width: 100% !important;
         height: 350px !important;
     }
 
-    /* Заголовок в карточке */
     .chart-card h3 {
         margin-bottom: 1rem;
         font-size: 1.25rem;
         font-weight: 600;
         color: #2d3748;
     }
-
-
 
 /* Category List */
 .category-list {
@@ -425,7 +435,12 @@ h2 {
     }
 
     .chart-card {
+        width: 100%;
         padding: 1rem;
-        min-height: 250px;
+        min-height: 300px;
     }
+
+        .chart-card canvas {
+            height: 250px !important;
+        }
 }

@@ -12,7 +12,6 @@ namespace ExpenseTracker.Data.Model
         public string MccCodes { get; set; }
         public Guid? UserId { get; set; } // Null for built-in, user ID for custom
         public bool IsBuiltIn { get; set; } // True for built-in categories
-
         [NotMapped]
         public int[] MccCodesArray
         {

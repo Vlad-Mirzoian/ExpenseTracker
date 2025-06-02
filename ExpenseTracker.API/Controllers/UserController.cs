@@ -5,6 +5,7 @@ using ExpenseTracker.Data.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ExpenseTracker.API
 {
@@ -36,7 +37,7 @@ namespace ExpenseTracker.API
             public string Login { get; set; }
             public string Password { get; set; }
         }
-        // Регистрация пользователя
+
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
@@ -58,7 +59,6 @@ namespace ExpenseTracker.API
             return Ok(new { message = "Користувач зареєстрований успішно!" });
         }
 
-        // Авторизация пользователя
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
@@ -72,7 +72,7 @@ namespace ExpenseTracker.API
             var token = GenerateJwtToken(existingUser);
             return Ok(new { token });
         }
-        // Генерация JWT
+
         private string GenerateJwtToken(User user)
         {
             var claims = new[]
@@ -94,6 +94,8 @@ namespace ExpenseTracker.API
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
+        [Authorize]
         [HttpGet("me")]
         public async Task<IActionResult> GetCurrentUser()
         {

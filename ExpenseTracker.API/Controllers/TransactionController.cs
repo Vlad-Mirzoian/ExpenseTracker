@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 
 namespace ExpenseTracker.API
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class TransactionController : ControllerBase
@@ -20,6 +22,7 @@ namespace ExpenseTracker.API
             _categoryRepository = categoryRepository ?? throw new ArgumentNullException(nameof(categoryRepository));
         }
 
+        // Existing endpoints (unchanged, shown for context)
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TransactionDto>>> GetTransactions()
         {
@@ -87,7 +90,51 @@ namespace ExpenseTracker.API
         [HttpGet("category/{categoryId}")]
         public async Task<ActionResult<IEnumerable<TransactionDto>>> GetTransactionByCategory(Guid categoryId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 15)
         {
+            var currentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
             var transactions = await _transactionRepository.GetTransactionsByCategoriesAsync(categoryId, pageNumber, pageSize);
+
+            // Filter transactions by UserId
+            transactions = transactions.Where(t => t.UserId == currentUserId).ToList();
+            if (!transactions.Any())
+            {
+                return NotFound("No transactions found for this category and user.");
+            }
+
+            var transactionDtos = transactions.Select(t => new TransactionDto
+            {
+                Id = t.Id,
+                Description = t.Description,
+                Amount = t.Amount,
+                Date = t.Date,
+                CategoryId = t.CategoryId,
+                CategoryName = t.Category?.Name,
+                UserId = t.UserId,
+                TransactionType = t.TransactionType,
+                MccCode = t.MccCode,
+                IsManuallyCategorized = t.IsManuallyCategorized,
+                TransactionCategories = t.TransactionCategories.Select(tc => new TransactionCategoryDto
+                {
+                    CategoryId = tc.CategoryId,
+                    CategoryName = tc.Category?.Name,
+                    IsBaseCategory = tc.IsBaseCategory
+                }).ToList()
+            }).ToList();
+            return Ok(transactionDtos);
+        }
+
+        [HttpGet("all-by-category/{categoryId}")]
+        public async Task<ActionResult<IEnumerable<TransactionDto>>> GetAllTransactionsByCategory(Guid categoryId)
+        {
+            var currentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            var transactions = await _transactionRepository.GetTransactionsByCategoriesAsync(categoryId);
+
+            // Filter transactions by UserId
+            transactions = transactions.Where(t => t.UserId == currentUserId).ToList();
+            if (!transactions.Any())
+            {
+                return NotFound("No transactions found for this category and user.");
+            }
+
             var transactionDtos = transactions.Select(t => new TransactionDto
             {
                 Id = t.Id,
