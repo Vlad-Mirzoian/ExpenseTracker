@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ExpenseTracker.Data.Model;
 using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
 
 namespace ExpenseTracker.API
 {
@@ -13,12 +14,10 @@ namespace ExpenseTracker.API
         private readonly ICategoryRepository _categoryRepository;
         private readonly ITransactionRepository _transactionRepository;
 
-        public CategoryController(
-            ICategoryRepository categoryRepository,
-            ITransactionRepository transactionRepository)
+        public CategoryController(ICategoryRepository categoryRepository, ITransactionRepository transactionRepository)
         {
-            _categoryRepository = categoryRepository ?? throw new ArgumentNullException(nameof(categoryRepository));
-            _transactionRepository = transactionRepository ?? throw new ArgumentNullException(nameof(transactionRepository));
+            _categoryRepository = categoryRepository;
+            _transactionRepository = transactionRepository;
         }
 
         [HttpGet]

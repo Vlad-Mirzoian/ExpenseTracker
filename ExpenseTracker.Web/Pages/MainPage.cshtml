@@ -7,225 +7,319 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Трекер витрат</title>
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+
+        .modal {
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .modal-content {
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .chart-container {
+            max-width: 448px; /* Tailwind max-w-md */
+            max-height: 400px;
+            margin: 0 auto;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: auto !important;
+        }
+    </style>
 </head>
-<body>
-    <nav class="navbar">
-        <div class="navbar-brand">Трекер витрат</div>
-        <button class="navbar-toggle" aria-label="Відкрити меню" onclick="toggleSidebar()">
-            <i class="fas fa-bars"></i>
-        </button>
-        <div class="navbar-actions">
-            <form method="post" action="?handler=Logout">
-                @Html.AntiForgeryToken()
-                <button type="submit" class="btn btn-secondary">Вийти</button>
-            </form>
+<body class="bg-gray-100 font-inter">
+    <nav class="fixed top-0 left-0 right-0 bg-white shadow-md z-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="text-xl font-bold text-gray-900">Трекер витрат</div>
+                <div class="flex items-center space-x-4">
+                    <button class="md:hidden text-gray-600 hover:text-gray-900 focus:outline-none" aria-label="Відкрити меню" onclick="toggleSidebar()">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
+                        </svg>
+                    </button>
+                    <form method="post" action="?handler=Logout">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 transition">Вийти</button>
+                    </form>
+                </div>
+            </div>
         </div>
     </nav>
 
-    <div class="grid-container">
-        <aside class="sidebar">
-            <div class="user-info">
-                <img src="/img/avatar.jpg" alt="Аватар користувача" class="user-avatar">
-                <p class="user-name">Привіт, @(Model.UserInformation?.Login ?? "Гість")</p>
-            </div>
-            <h3>Категорії</h3>
-            <ul class="categories">
-                <li>
-                    <form method="get" action="/MainPage">
-                        <button type="submit" class="category-btn">Усі</button>
-                    </form>
-                </li>
-                @foreach (var category in Model.Categories)
+    <div class="flex pt-16 min-h-screen">
+        <aside class="sidebar fixed md:static inset-y-0 right-0 bg-white w-64 shadow-lg transform translate-x-full md:translate-x-0 transition-transform z-10 pt-16">
+            <div class="p-6">
+                <div class="flex items-center space-x-3 mb-6">
+                    <img src="/img/avatar.jpg" alt="Аватар користувача" class="w-10 h-10 rounded-full">
+                    <p class="text-gray-900 font-medium">Привіт, @(Model.UserInformation?.Login ?? "Гість")</p>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Категорії</h3>
+                @if (!string.IsNullOrEmpty(Model.CategoryDeleteError))
                 {
+                    <div id="categoryError" class="text-red-600 text-sm mb-2">@Model.CategoryDeleteError</div>
+                }
+                else
+                {
+                    <div id="categoryError" class="text-red-600 text-sm mb-2 hidden"></div>
+                }
+                <ul class="space-y-2">
                     <li>
-                        <div class="category-buttons">
-                            <form method="get" action="/MainPage">
+                        <form method="get" action="/MainPage">
+                            <button type="submit" class="w-full text-left px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition">Усі</button>
+                        </form>
+                    </li>
+                    @foreach (var category in Model.Categories)
+                    {
+                        <li class="flex items-center space-x-2">
+                            <form method="get" action="/MainPage" class="flex-1">
                                 <input type="hidden" name="id" value="@category.Id" />
                                 <input type="hidden" name="pageNumber" value="1" />
-                                <button type="submit" class="category-btn" aria-label="Показати транзакції для @category.Name">@category.Name</button>
+                                <button type="submit" class="w-full text-left px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition" aria-label="Показати транзакції для @category.Name">@category.Name</button>
                             </form>
-                        </div>
-                    </li>
-                }
-                <li>
-                    <button class="btn btn-primary toggle-create-category" onclick="toggleCreateCategoryForm()" aria-label="Показати форму створення категорії">
-                        Створити нову категорію
-                    </button>
-                    <form method="post" action="?handler=CreateCategory" class="create-category-form" style="display: none;">
-                        @Html.AntiForgeryToken()
-                        <div class="form-group">
-                            <label for="NewCategoryName">Назва:</label>
-                            <input type="text" id="NewCategoryName" name="NewCategoryName" class="form-control" required aria-required="true" />
-                        </div>
-                        <div class="form-group">
-                            <label for="BaseCategoryIds">Базові категорії:</label>
-                            <select id="BaseCategoryIds" name="BaseCategoryIds" multiple class="form-control" aria-label="Виберіть базові категорії">
-                                @foreach (var category in Model.Categories.Where(c => c.IsBuiltIn))
-                                {
-                                    <option value="@category.Id">@category.Name</option>
-                                }
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Створити</button>
-                    </form>
-                    @if (!string.IsNullOrEmpty(Model.ModelError))
-                    {
-                        <p class="error">@Model.ModelError</p>
+                            @if (!category.IsBuiltIn)
+                            {
+                                <form method="post" action="?handler=DeleteCategory">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="categoryId" value="@category.Id" />
+                                    <button type="submit" onclick="return confirm('Ви впевнені, що хочете видалити категорію &quot;@category.Name&quot;?')" class="text-red-600 hover:text-red-700 focus:outline-none" aria-label="Видалити категорію @category.Name">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                        </svg>
+                                    </button>
+                                </form>
+                            }
+                        </li>
                     }
-                </li>
-            </ul>
+                    <li>
+                        <button class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition" onclick="toggleCreateCategoryModal()" aria-label="Створити нову категорію">
+                            Створити нову категорію
+                        </button>
+                    </li>
+                </ul>
+            </div>
         </aside>
 
-        <main class="content">
-            <h2>Огляд фінансів</h2>
-            <div class="chart-cards">
+        <main class="flex-1 p-6 md:mr-64">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">Огляд фінансів</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 @if (Request.Query.ContainsKey("id"))
                 {
                     @if (Model.ExpenseDescriptionChartData.Any() && Model.ExpenseDescriptionChartData.Any(d => d.TotalAmount != 0))
                     {
-                        <div class="chart-card">
-                            <h3>Витрати за описом</h3>
-                            <canvas id="expenseDescriptionChart"></canvas>
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Витрати за описом</h3>
+                            <div class="chart-container">
+                                <canvas id="expenseDescriptionChart"></canvas>
+                            </div>
                         </div>
                     }
                     @if (Model.IncomeDescriptionChartData.Any() && Model.IncomeDescriptionChartData.Any(d => d.TotalAmount != 0))
                     {
-                        <div class="chart-card">
-                            <h3>Надходження за описом</h3>
-                            <canvas id="incomeDescriptionChart"></canvas>
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Надходження за описом</h3>
+                            <div class="chart-container">
+                                <canvas id="incomeDescriptionChart"></canvas>
+                            </div>
                         </div>
                     }
                     @if (!Model.ExpenseDescriptionChartData.Any(d => d.TotalAmount != 0) && !Model.IncomeDescriptionChartData.Any(d => d.TotalAmount != 0))
                     {
-                        <p>Дані для графіків за описом відсутні.</p>
+                        <p class="text-gray-600">Дані для графіків за описом відсутні.</p>
                     }
                 }
                 else
                 {
                     @if (Model.CategorySpending.Any() && Model.CategorySpending.Any(d => d.TotalAmount != 0))
                     {
-                        <div class="chart-card">
-                            <h3>Витрати за базовими категоріями</h3>
-                            <canvas id="expenseChart"></canvas>
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Витрати за базовими категоріями</h3>
+                            <div class="chart-container">
+                                <canvas id="expenseChart"></canvas>
+                            </div>
                         </div>
                     }
                     else
                     {
-                        <p>Дані для графіку витрат відсутні.</p>
+                        <p class="text-gray-600">Дані для графіку витрат відсутні.</p>
                     }
                     @if (Model.IncomeByCategory.Any() && Model.IncomeByCategory.Any(d => d.TotalAmount != 0))
                     {
-                        <div class="chart-card">
-                            <h3>Надходження за базовими категоріями</h3>
-                            <canvas id="incomeChart"></canvas>
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Надходження за базовими категоріями</h3>
+                            <div class="chart-container">
+                                <canvas id="incomeChart"></canvas>
+                            </div>
                         </div>
                     }
                     else
                     {
-                        <p>Дані для графіку надходжень відсутні.</p>
+                        <p class="text-gray-600">Дані для графіку надходжень відсутні.</p>
                     }
                 }
             </div>
+
             @if (Request.Query.ContainsKey("id"))
             {
                 <div class="transaction-list">
-                    <h3>Транзакції (Сторінка @Model.PageNumber)</h3>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-4">Транзакції (Сторінка @Model.PageNumber)</h3>
                     @if (!Model.Transactions.Any())
                     {
-                        <p>Транзакції відсутні.</p>
+                        <p class="text-gray-600">Транзакції відсутні.</p>
                     }
                     else
                     {
-                        @foreach (var transaction in Model.Transactions)
-                        {
-                            <div class="transaction-card">
-                                <div class="transaction-icon">
-                                    <i class="fas fa-money-bill-wave"></i>
+                        <div class="space-y-4">
+                            @foreach (var transaction in Model.Transactions)
+                            {
+                                <div class="bg-white p-4 rounded-lg shadow-md flex items-start space-x-4 hover:shadow-lg transition">
+                                    <div class="text-blue-600">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-gray-900 font-medium">@transaction.Description</p>
+                                        <p class="text-gray-600">@transaction.Amount.ToString("F2") грн</p>
+                                        <p class="text-gray-500 text-sm">@transaction.Date.ToString("dd.MM.yyyy")</p>
+                                        <p class="text-gray-500 text-sm">Категорії: @string.Join(", ", transaction.TransactionCategories.Select(tc => tc.CategoryName + (tc.IsBaseCategory ? " (Базова)" : "")))</p>
+                                        <form method="post" action="?handler=UpdateTransactionCategory&pageNumber=@Model.PageNumber" class="mt-2">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="TransactionId" value="@transaction.Id" />
+                                            <select name="CategoryId" onchange="this.form.submit()" class="border border-gray-300 rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Виберіть нову категорію для транзакції">
+                                                @foreach (var category in Model.Categories.Where(c => c.IsBuiltIn))
+                                                {
+                                                    <option value="@category.Id" @(category.Id == transaction.CategoryId ? "selected" : "")>@category.Name</option>
+                                                }
+                                            </select>
+                                        </form>
+                                    </div>
                                 </div>
-                                <div class="transaction-details">
-                                    <p><strong>@transaction.Description</strong></p>
-                                    <p>@transaction.Amount.ToString("F2") грн</p>
-                                    <p>@transaction.Date.ToString("dd.MM.yyyy")</p>
-                                    <p>Категорії: @string.Join(", ", transaction.TransactionCategories.Select(tc => tc.CategoryName + (tc.IsBaseCategory ? " (Базова)" : "")))</p>
-                                    <form method="post" action="?handler=UpdateTransactionCategory&pageNumber=@Model.PageNumber">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="TransactionId" value="@transaction.Id" />
-                                        <select name="CategoryId" onchange="this.form.submit()" aria-label="Виберіть нову категорію для транзакції">
-                                            @foreach (var category in Model.Categories.Where(c => c.IsBuiltIn))
-                                            {
-                                                <option value="@category.Id" @(category.Id == transaction.CategoryId ? "selected" : "")>@category.Name</option>
-                                            }
-                                        </select>
-                                    </form>
-                                </div>
-                            </div>
-                        }
+                            }
+                        </div>
                         @if (Model.HasMoreTransactions)
                         {
-                            <div class="load-more">
-                                <a href="/MainPage?id=@Request.Query["id"]&pageNumber=@(Model.PageNumber + 1)" class="btn btn-primary" aria-label="Завантажити ще">Завантажити ще</a>
+                            <div class="mt-6 text-center">
+                                <a href="/MainPage?id=@Request.Query["id"]&pageNumber=@(Model.PageNumber + 1)" class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition" aria-label="Завантажити ще">Завантажити ще</a>
                             </div>
                         }
                         else
                         {
-                            <p class="no-more">Більше транзакцій немає.</p>
+                            <p class="text-gray-600 mt-4 text-center">Більше транзакцій немає.</p>
                         }
                     }
                     @if (!string.IsNullOrEmpty(Model.ModelError))
                     {
-                        <p class="error">@Model.ModelError</p>
+                        <p class="text-red-600 mt-4">@Model.ModelError</p>
                     }
                 </div>
             }
             else
             {
                 <div class="category-list">
-                    <h3>Витрати</h3>
-                    @foreach (var item in Model.CategorySpending)
-                    {
-                        <div class="category-card @(item.IsBuiltIn ? "" : "user-created")">
-                            <div class="category-icon">
-                                <i class="fas fa-tags"></i>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-4">Витрати</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        @foreach (var item in Model.CategorySpending)
+                        {
+                            <div class="bg-white p-4 rounded-lg shadow-md flex items-start space-x-4 hover:shadow-lg transition">
+                                <div class="text-blue-600">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V5a2 2 0 012-2h2z"></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-gray-900 font-medium">
+                                        @item.CategoryName
+                                        @if (!item.IsBuiltIn)
+                                        {
+                                            <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full ml-2">Користувацька</span>
+                                        }
+                                    </p>
+                                    <p class="text-gray-600">@item.TotalAmount.ToString("F2") грн</p>
+                                    <p class="text-gray-500 text-sm">@item.Percentage.ToString("F1")% від загальних витрат</p>
+                                </div>
                             </div>
-                            <div class="category-details">
-                                <p>
-                                    <strong>@item.CategoryName</strong>
-                                    @if (!item.IsBuiltIn)
-                                    {
-                                        <span class="user-created-badge">Користувацька</span>
-                                    }
-                                </p>
-                                <p>@item.TotalAmount.ToString("F2") грн</p>
-                                <p>@item.Percentage.ToString("F1")% від загальних витрат</p>
+                        }
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mt-8 mb-4">Надходження</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        @foreach (var item in Model.IncomeByCategory)
+                        {
+                            <div class="bg-white p-4 rounded-lg shadow-md flex items-start space-x-4 hover:shadow-lg transition">
+                                <div class="text-green-600">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-gray-900 font-medium">
+                                        @item.CategoryName
+                                        @if (!item.IsBuiltIn)
+                                        {
+                                            <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full ml-2">Користувацька</span>
+                                        }
+                                    </p>
+                                    <p class="text-gray-600">@item.TotalAmount.ToString("F2") грн</p>
+                                    <p class="text-gray-500 text-sm">@item.Percentage.ToString("F1")% від загальних надходжень</p>
+                                </div>
                             </div>
-                        </div>
-                    }
-                    <h3>Надходження</h3>
-                    @foreach (var item in Model.IncomeByCategory)
-                    {
-                        <div class="category-card @(item.IsBuiltIn ? "" : "user-created")">
-                            <div class="category-icon">
-                                <i class="fas fa-money-check-alt"></i>
-                            </div>
-                            <div class="category-details">
-                                <p>
-                                    <strong>@item.CategoryName</strong>
-                                    @if (!item.IsBuiltIn)
-                                    {
-                                        <span class="user-created-badge">Користувацька</span>
-                                    }
-                                </p>
-                                <p>@item.TotalAmount.ToString("F2") грн</p>
-                                <p>@item.Percentage.ToString("F1")% від загальних надходжень</p>
-                            </div>
-                        </div>
-                    }
+                        }
+                    </div>
                 </div>
             }
+
+            <!-- Category Creation Modal -->
+            <div id="createCategoryModal" class="modal fixed inset-0 bg-black/50 flex items-center justify-center hidden z-30">
+                <div class="modal-content bg-white p-6 rounded-lg shadow-xl w-full max-w-md transform scale-95">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900">Створити нову категорію</h3>
+                        <button onclick="toggleCreateCategoryModal()" class="text-gray-600 hover:text-gray-900" aria-label="Закрити">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <form method="post" action="?handler=CreateCategory">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-4">
+                            <label for="NewCategoryName" class="block text-sm font-medium text-gray-700">Назва категорії</label>
+                            <input type="text" id="NewCategoryName" name="NewCategoryName" class="mt-1 w-full border border-gray-300 rounded-md px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500" required aria-required="true" placeholder="Введіть назву" />
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700">Базові категорії (опціонально)</label>
+                            <div class="mt-1 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-3 bg-white">
+                                @foreach (var category in Model.Categories.Where(c => c.IsBuiltIn))
+                                {
+                                    <div class="flex items-center mb-2">
+                                        <input type="checkbox" id="baseCategory_@category.Id" name="BaseCategoryIds" value="@category.Id" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
+                                        <label for="baseCategory_@category.Id" class="ml-2 text-sm text-gray-700">@category.Name</label>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(Model.ModelError))
+                        {
+                            <p class="text-red-600 text-sm mb-4">@Model.ModelError</p>
+                        }
+                        <div class="flex space-x-3">
+                            <button type="submit" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition">Створити</button>
+                            <button type="button" onclick="toggleCreateCategoryModal()" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 transition">Скасувати</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -234,9 +328,12 @@
             document.querySelector('.sidebar').classList.toggle('active');
         }
 
-        function toggleCreateCategoryForm() {
-            const form = document.querySelector('.create-category-form');
-            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        function toggleCreateCategoryModal() {
+            const modal = document.getElementById('createCategoryModal');
+            modal.classList.toggle('hidden');
+            const content = modal.querySelector('.modal-content');
+            content.classList.toggle('scale-95');
+            content.classList.toggle('scale-100');
         }
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -254,12 +351,13 @@
                             datasets: [{
                                 label: 'Витрати за описом',
                                 data: expenseDescAmounts,
-                                backgroundColor: ['#e53e3e', '#38b2ac', '#805ad5', '#f6e05e', '#48bb78', '#ed8936', '#3182ce', '#38a169', '#d53f8c', '#b794f4'],
+                                backgroundColor: ['#dc2626', '#14b8a6', '#7c3aed', '#eab308', '#16a34a', '#ea580c', '#2563eb', '#15803d', '#db2777', '#a855f7'],
                                 hoverOffset: 12
                             }]
                         },
                         options: {
                             responsive: true,
+                            maintainAspectRatio: false,
                             plugins: {
                                 legend: { position: 'bottom' },
                                 tooltip: {
@@ -285,12 +383,13 @@
                             datasets: [{
                                 label: 'Надходження за описом',
                                 data: incomeDescAmounts,
-                                backgroundColor: ['#3182ce', '#38a169', '#d53f8c', '#ed8936', '#48bb78', '#b794f4'],
+                                backgroundColor: ['#2563eb', '#15803d', '#db2777', '#ea580c', '#16a34a', '#a855f7'],
                                 hoverOffset: 12
                             }]
                         },
                         options: {
                             responsive: true,
+                            maintainAspectRatio: false,
                             plugins: {
                                 legend: { position: 'bottom' },
                                 tooltip: {
@@ -316,12 +415,13 @@
                             datasets: [{
                                 label: 'Витрати',
                                 data: expenseAmounts,
-                                backgroundColor: ['#e53e3e', '#38b2ac', '#805ad5', '#f6e05e', '#48bb78', '#ed8936'],
+                                backgroundColor: ['#dc2626', '#14b8a6', '#7c3aed', '#eab308', '#16a34a', '#ea580c'],
                                 hoverOffset: 12
                             }]
                         },
                         options: {
                             responsive: true,
+                            maintainAspectRatio: false,
                             plugins: {
                                 legend: { position: 'bottom' },
                                 tooltip: {
@@ -347,14 +447,15 @@
                             datasets: [{
                                 label: 'Надходження',
                                 data: incomeAmounts,
-                                backgroundColor: ['#3182ce', '#38a169', '#d53f8c', '#ed8936', '#48bb78', '#b794f4'],
+                                backgroundColor: ['#2563eb', '#15803d', '#db2777', '#ea580c', '#16a34a', '#a855f7'],
                                 hoverOffset: 12
                             }]
                         },
                         options: {
                             responsive: true,
+                            maintainAspectRatio: false,
                             plugins: {
-                                legend: { position: 'top' },
+                                legend: { position: 'bottom' },
                                 tooltip: {
                                     callbacks: {
                                         label: function (tooltipItem) {

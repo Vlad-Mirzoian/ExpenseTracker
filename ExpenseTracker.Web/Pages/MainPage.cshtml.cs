@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.Net.Http.Headers;
 using ExpenseTracker.API;
 using ExpenseTracker.Data.Model;
+
 using System.Text.Json;
 
 namespace ExpenseTracker.Web.Pages
@@ -11,8 +12,6 @@ namespace ExpenseTracker.Web.Pages
     {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IUserRepository _userRepository;
-        private readonly ITransactionRepository _transactionRepository;
-        private readonly ICategoryRepository _categoryRepository;
         private readonly ILogger<MainPageModel> _logger;
 
         public User UserInformation { get; set; } = new User();
@@ -23,6 +22,8 @@ namespace ExpenseTracker.Web.Pages
         public List<TransactionDescriptionInfo> ExpenseDescriptionChartData { get; set; } = new List<TransactionDescriptionInfo>();
         public List<TransactionDescriptionInfo> IncomeDescriptionChartData { get; set; } = new List<TransactionDescriptionInfo>();
         public string ModelError { get; set; }
+        public string CategoryDeleteError { get; set; }
+        public string CategoryEditError { get; set; }
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 15;
         public bool HasMoreTransactions { get; set; }
@@ -35,14 +36,10 @@ namespace ExpenseTracker.Web.Pages
         public MainPageModel(
             IHttpClientFactory httpClientFactory,
             IUserRepository userRepository,
-            ITransactionRepository transactionRepository,
-            ICategoryRepository categoryRepository,
             ILogger<MainPageModel> logger)
         {
             _httpClientFactory = httpClientFactory;
             _userRepository = userRepository;
-            _transactionRepository = transactionRepository;
-            _categoryRepository = categoryRepository;
             _logger = logger;
         }
 
@@ -53,7 +50,7 @@ namespace ExpenseTracker.Web.Pages
             var jwt = Request.Cookies["jwt"];
             if (string.IsNullOrEmpty(jwt))
             {
-                return RedirectToPage("/auth");
+                return RedirectToPage("/Auth/Login");
             }
 
             var client = _httpClientFactory.CreateClient("ExpenseTrackerApi");
@@ -65,7 +62,7 @@ namespace ExpenseTracker.Web.Pages
                 if (!responseUser.IsSuccessStatusCode)
                 {
                     _logger.LogWarning("Failed to fetch user info: {StatusCode}", responseUser.StatusCode);
-                    return RedirectToPage("/auth");
+                    return RedirectToPage("/Auth/Login");
                 }
 
                 UserInformation = await responseUser.Content.ReadFromJsonAsync<User>() ?? new User();
@@ -74,13 +71,13 @@ namespace ExpenseTracker.Web.Pages
                 if (user == null)
                 {
                     _logger.LogWarning("User not found: {UserId}", UserInformation.Id);
-                    return RedirectToPage("/auth");
+                    return RedirectToPage("/Auth/Login");
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching user info");
-                return RedirectToPage("/auth");
+                return RedirectToPage("/Auth/Login");
             }
 
             await LoadCategoriesAsync(client);
@@ -346,7 +343,7 @@ namespace ExpenseTracker.Web.Pages
         public IActionResult OnPostLogout()
         {
             Response.Cookies.Delete("jwt");
-            return RedirectToPage("/auth");
+            return RedirectToPage("/Auth/Login");
         }
 
         public async Task<IActionResult> OnPostUpdateTransactionCategoryAsync(Guid transactionId, Guid categoryId)
@@ -354,7 +351,7 @@ namespace ExpenseTracker.Web.Pages
             var jwt = Request.Cookies["jwt"];
             if (string.IsNullOrEmpty(jwt))
             {
-                return RedirectToPage("/auth");
+                return RedirectToPage("/Auth/Login");
             }
 
             if (categoryId == Guid.Empty)
@@ -403,7 +400,7 @@ namespace ExpenseTracker.Web.Pages
             if (string.IsNullOrEmpty(jwt))
             {
                 _logger.LogWarning("No JWT found for category creation");
-                return RedirectToPage("/auth");
+                return RedirectToPage("/Auth/Login");
             }
 
             if (string.IsNullOrWhiteSpace(NewCategoryName))
@@ -420,7 +417,6 @@ namespace ExpenseTracker.Web.Pages
             {
                 Name = NewCategoryName,
                 ParentCategoryIds = BaseCategoryIds ?? new List<Guid>(),
-                IsBuiltIn = false
             };
 
             try
@@ -446,6 +442,113 @@ namespace ExpenseTracker.Web.Pages
 
             return RedirectToPage(new { id = Request.Query["id"], pageNumber = PageNumber });
         }
+        /*
+        public async Task<IActionResult> OnPostEditCategoryAsync(string CategoryId, string CategoryName, List<Guid> BaseCategoryIds)
+        {
+            var jwt = Request.Cookies["jwt"];
+            if (string.IsNullOrEmpty(jwt))
+            {
+                _logger.LogWarning("No JWT found for category edit");
+                return RedirectToPage("/Auth/Login");
+            }
+
+            if (!Guid.TryParse(CategoryId, out var id))
+            {
+                CategoryEditError = "Некоректний ідентифікатор категорії.";
+                _logger.LogWarning($"Invalid category ID format: {CategoryId}");
+                return Page();
+            }
+
+            if (string.IsNullOrWhiteSpace(CategoryName))
+            {
+                CategoryEditError = "Назва категорії не може бути порожньою.";
+                _logger.LogWarning("Empty category name provided for edit");
+                return Page();
+            }
+
+            var client = _httpClientFactory.CreateClient("ExpenseTrackerApi");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", jwt);
+
+            var updateCategoryDto = new UpdateCategoryDto
+            {
+                Name = CategoryName,
+                ParentCategoryIds = BaseCategoryIds ?? new List<Guid>()
+            };
+
+            try
+            {
+                _logger.LogInformation($"Editing category {id} with name {CategoryName} and parent IDs {string.Join(",", BaseCategoryIds ?? new List<Guid>())}");
+                var response = await client.PutAsJsonAsync($"api/category/{id}", updateCategoryDto);
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation($"Successfully edited category {id}");
+                    await LoadCategoriesAsync(client); // Refresh categories
+                    return RedirectToPage();
+                }
+
+                var errorContent = await response.Content.ReadAsStringAsync();
+                CategoryEditError = $"Помилка редагування категорії: {errorContent}";
+                _logger.LogWarning($"Failed to edit category {id}: {errorContent}");
+            }
+            catch (Exception ex)
+            {
+                CategoryEditError = $"Помилка: {ex.Message}";
+                _logger.LogError(ex, $"Error editing category {id}");
+            }
+
+            return Page();
+        }
+        */
+
+        public async Task<IActionResult> OnPostDeleteCategoryAsync(string categoryId)
+        {
+            var jwt = Request.Cookies["jwt"];
+            if (string.IsNullOrEmpty(jwt))
+            {
+                return RedirectToPage("/Auth/Login");
+            }
+
+            if (!Guid.TryParse(categoryId, out var id))
+            {
+                CategoryDeleteError = "Некоректний ідентифікатор категорії.";
+                return Page();
+            }
+
+            var client = _httpClientFactory.CreateClient("ExpenseTrackerApi");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", jwt);
+
+            try
+            {
+                var response = await client.DeleteAsync($"api/category/{id}");
+                if (response.IsSuccessStatusCode)
+                {
+                    return RedirectToPage();
+                }
+                var responseBody = await response.Content.ReadAsStringAsync();
+                switch ((int)response.StatusCode)
+                {
+                    case 404:
+                        CategoryDeleteError = "Категорію не знайдено.";
+                        break;
+                    case 403:
+                        CategoryDeleteError = "Неможливо видалити базову категорію або категорію іншого користувача.";
+                        break;
+                    case 500:
+                        CategoryDeleteError = "Базова категорія 'Інше' не знайдена.";
+                        break;
+                    default:
+                        CategoryDeleteError = "Помилка сервера при видаленні категорії.";
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                CategoryDeleteError = "Помилка при з'єднанні з сервером.";
+            }
+
+            return Page();
+        }
+
     }
 
     public record CategorySpendingInfo
