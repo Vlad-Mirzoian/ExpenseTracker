@@ -22,7 +22,6 @@ namespace ExpenseTracker.API
             _categoryRepository = categoryRepository ?? throw new ArgumentNullException(nameof(categoryRepository));
         }
 
-        // Existing endpoints (unchanged, shown for context)
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TransactionDto>>> GetTransactions()
         {

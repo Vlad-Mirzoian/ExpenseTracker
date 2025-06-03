@@ -123,7 +123,7 @@ namespace ExpenseTracker.API
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateCategory(Guid id, [FromBody] CreateCategoryDto updateCategoryDto)
+        public async Task<IActionResult> UpdateCategory(Guid id, [FromBody] UpdateCategoryDto updateCategoryDto)
         {
             if (!ModelState.IsValid)
             {
@@ -142,26 +142,90 @@ namespace ExpenseTracker.API
                 return Forbid("Cannot modify built-in or other user's categories.");
             }
 
-            category.Name = updateCategoryDto.Name;
-            category.MccCodes = "[]";
+            var defaultCategory = await _categoryRepository.GetDefaultCategoryAsync();
+            if (defaultCategory == null)
+            {
+                return StatusCode(500, "Default category 'Інше' not found.");
+            }
+            var defaultCategoryId = defaultCategory.Id;
 
+            category.Name = updateCategoryDto.Name;
             await _categoryRepository.UpdateAsync(category);
 
-            await _categoryRepository.RemoveRelationshipsAsync(id);
-            if (updateCategoryDto.ParentCategoryIds != null && updateCategoryDto.ParentCategoryIds.Any())
+            var currentBaseCategoryIds = await _categoryRepository.GetBaseCategoryIdsAsync(id);
+            var newBaseCategoryIds = updateCategoryDto.BaseCategoryIds ?? new List<Guid>();
+
+            foreach (var baseCategoryId in newBaseCategoryIds)
             {
-                foreach (var parentId in updateCategoryDto.ParentCategoryIds)
+                var baseCategory = await _categoryRepository.GetByIdAsync(baseCategoryId);
+                if (baseCategory == null || !baseCategory.IsBuiltIn)
                 {
-                    var parent = await _categoryRepository.GetByIdAsync(parentId);
-                    if (parent == null || !parent.IsBuiltIn)
-                    {
-                        return BadRequest($"Invalid parent category ID: {parentId}");
-                    }
-                    await _categoryRepository.AddRelationshipAsync(id, parentId);
+                    return BadRequest($"Invalid base category ID: {baseCategoryId}");
                 }
             }
 
-            return NoContent();
+            var baseCategoriesToRemove = currentBaseCategoryIds.Except(newBaseCategoryIds).ToList();
+            foreach (var baseCategoryId in baseCategoriesToRemove)
+            {
+                await _categoryRepository.RemoveRelationshipAsync(id, baseCategoryId);
+            }
+
+            var baseCategoriesToAdd = newBaseCategoryIds.Except(currentBaseCategoryIds).ToList();
+            foreach (var baseCategoryId in baseCategoriesToAdd)
+            {
+                await _categoryRepository.AddRelationshipAsync(id, baseCategoryId);
+            }
+
+            var allMccCodes = new List<int>();
+            foreach (var baseId in newBaseCategoryIds)
+            {
+                var baseCategory = await _categoryRepository.GetByIdAsync(baseId);
+                allMccCodes.AddRange(baseCategory.MccCodesArray);
+            }
+            category.MccCodesArray = allMccCodes.Distinct().ToArray();
+            await _categoryRepository.UpdateAsync(category);
+
+            var transactionIds = await _categoryRepository.GetTransactionIdsByCategoryIdAsync(id, userId);
+            if (transactionIds.Any())
+            {
+                foreach (var baseId in baseCategoriesToRemove)
+                {
+                    var baseTransactionIds = await _categoryRepository.GetTransactionIdsByCategoryIdAsync(baseId, userId);
+                    var transactionsToRemove = transactionIds.Intersect(baseTransactionIds).ToList();
+                    if (transactionsToRemove.Any())
+                    {
+                        await _transactionRepository.RemoveTransactionCategoriesAsync(id, transactionsToRemove);
+                    }
+                }
+
+                foreach (var baseId in baseCategoriesToAdd)
+                {
+                    var baseTransactionIds = await _categoryRepository.GetTransactionIdsByCategoryIdAsync(baseId, userId);
+                    var transactionsToAdd = baseTransactionIds.Except(transactionIds).ToList();
+                    if (transactionsToAdd.Any())
+                    {
+                        var newCategories = transactionsToAdd.Select(tId => new TransactionCategory
+                        {
+                            TransactionId = tId,
+                            CategoryId = id,
+                            IsBaseCategory = false
+                        }).ToList();
+                        await _transactionRepository.AddTransactionCategoriesAsync(newCategories);
+                    }
+                }
+                await _transactionRepository.ReassignOrphanedTransactionsAsync(transactionIds, defaultCategoryId);
+            }
+
+            var categoryDto = new CategoryDto
+            {
+                Id = category.Id,
+                Name = category.Name,
+                MccCodes = category.MccCodesArray,
+                IsBuiltIn = category.IsBuiltIn,
+                UserId = category.UserId
+            };
+
+            return Ok(categoryDto);
         }
 
         [HttpDelete("{id}")]
@@ -185,14 +249,14 @@ namespace ExpenseTracker.API
                 return StatusCode(500, "Default category 'Інше' not found.");
             }
 
-            var transactions = await _categoryRepository.GetTransactionsByCategoryIdAsync(id, userId);
-            var transactionIds = transactions.Select(t => t.Id).ToList();
-
+            var transactionIds = await _categoryRepository.GetTransactionIdsByCategoryIdAsync(id, userId);
             if (transactionIds.Any())
             {
-                await _transactionRepository.UpdateCategoryForTransactionsAsync(defaultCategory.Id, transactionIds);
+                await _transactionRepository.RemoveTransactionCategoriesAsync(id, transactionIds);
+                await _transactionRepository.ReassignOrphanedTransactionsAsync(transactionIds, defaultCategory.Id);
             }
 
+            await _categoryRepository.RemoveRelationshipsAsync(id);
             await _categoryRepository.DeleteAsync(id);
             return NoContent();
         }

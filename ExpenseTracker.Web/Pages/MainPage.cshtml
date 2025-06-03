@@ -1,4 +1,5 @@
 ﻿@page
+@using System.Text.Encodings.Web
 @model ExpenseTracker.Web.Pages.MainPageModel
 
 <!DOCTYPE html>
@@ -87,19 +88,26 @@
                             <form method="get" action="/MainPage" class="flex-1">
                                 <input type="hidden" name="id" value="@category.Id" />
                                 <input type="hidden" name="pageNumber" value="1" />
-                                <button type="submit" class="w-full text-left px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition" aria-label="Показати транзакції для @category.Name">@category.Name</button>
+                                <button type="submit" class="w-full text-left px-4 py-2 @(category.IsBuiltIn ? "bg-gray-100 hover:bg-gray-200" : "bg-blue-200 hover:bg-blue-300") text-gray-700 rounded-md transition" aria-label="Показати транзакції для @category.Name">@category.Name</button>
                             </form>
                             @if (!category.IsBuiltIn)
                             {
-                                <form method="post" action="?handler=DeleteCategory">
-                                    @Html.AntiForgeryToken()
-                                    <input type="hidden" name="categoryId" value="@category.Id" />
-                                    <button type="submit" onclick="return confirm('Ви впевнені, що хочете видалити категорію &quot;@category.Name&quot;?')" class="text-red-600 hover:text-red-700 focus:outline-none" aria-label="Видалити категорію @category.Name">
+                                <div class="flex space-x-2">
+                                    <form method="post" action="?handler=DeleteCategory">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="categoryId" value="@category.Id" />
+                                        <button type="submit" onclick="return confirm('Ви впевнені, що хочете видалити категорію &quot;@category.Name&quot;?')" class="text-red-600 hover:text-red-700 focus:outline-none" aria-label="Видалити категорію @category.Name">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                    <button onclick="openEditCategoryModal('@category.Id', '@Html.Raw(JavaScriptEncoder.Default.Encode(category.Name))', '@(GetBaseCategoryIds(category))')" class="text-blue-600 hover:text-blue-700 focus:outline-none" aria-label="Редагувати категорію @category.Name">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15.828H9v-2.828l8.586-8.586z"></path>
                                         </svg>
                                     </button>
-                                </form>
+                                </div>
                             }
                         </li>
                     }
@@ -295,10 +303,10 @@
                         @Html.AntiForgeryToken()
                         <div class="mb-4">
                             <label for="NewCategoryName" class="block text-sm font-medium text-gray-700">Назва категорії</label>
-                            <input type="text" id="NewCategoryName" name="NewCategoryName" class="mt-1 w-full border border-gray-300 rounded-md px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500" required aria-required="true" placeholder="Введіть назву" />
+                            <input type="text" id="CreateCategoryName" name="NewCategoryName" class="mt-1 w-full border border-gray-300 rounded-md px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500" required aria-required="true" placeholder="Введіть назву" />
                         </div>
                         <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700">Базові категорії (опціонально)</label>
+                            <label class="block text-sm font-medium text-gray-700">Базові категорії</label>
                             <div class="mt-1 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-3 bg-white">
                                 @foreach (var category in Model.Categories.Where(c => c.IsBuiltIn))
                                 {
@@ -320,6 +328,48 @@
                     </form>
                 </div>
             </div>
+
+            <!-- Edit Category Modal -->
+            <div id="editCategoryModal" class="modal fixed inset-0 bg-black/50 flex items-center justify-center hidden z-30">
+                <div class="modal-content bg-white p-6 rounded-lg shadow-xl w-full max-w-md transform scale-95">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900">Редагувати категорію</h3>
+                        <button onclick="toggleEditCategoryModal()" class="text-gray-600 hover:text-gray-900" aria-label="Закрити">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <form method="post" action="?handler=EditCategory">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" id="EditCategoryId" name="EditCategoryId" />
+                        <div class="mb-4">
+                            <label for="NewCategoryName" class="block text-sm font-medium text-gray-700">Назва категорії</label>
+                            <input type="text" id="EditCategoryName" name="NewCategoryName" class="mt-1 w-full border border-gray-300 rounded-md px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500" required aria-required="true" placeholder="Введіть назву" />
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700">Базові категорії</label>
+                            <div class="mt-1 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-3 bg-white">
+                                @foreach (var category in Model.Categories.Where(c => c.IsBuiltIn))
+                                {
+                                    <div class="flex items-center mb-2">
+                                        <input type="checkbox" id="baseCategoryEdit_@category.Id" name="BaseCategoryIds" value="@category.Id" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
+                                        <label for="baseCategoryEdit_@category.Id" class="ml-2 text-sm text-gray-700">@category.Name</label>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(Model.CategoryEditError))
+                        {
+                            <p class="text-red-600 text-sm mb-4">@Model.CategoryEditError</p>
+                        }
+                        <div class="flex space-x-3">
+                            <button type="submit" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition">Зберегти</button>
+                            <button type="button" onclick="toggleEditCategoryModal()" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 transition">Скасувати</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -334,6 +384,48 @@
             const content = modal.querySelector('.modal-content');
             content.classList.toggle('scale-95');
             content.classList.toggle('scale-100');
+        }
+
+        function toggleEditCategoryModal() {
+            console.log('Toggling edit modal');
+            const modal = document.getElementById('editCategoryModal');
+            if (!modal) {
+                console.error('Edit modal element not found');
+                return;
+            }
+            modal.classList.toggle('hidden');
+            const content = modal.querySelector('.modal-content');
+            if (content) {
+                content.classList.toggle('scale-95');
+                content.classList.toggle('scale-100');
+            }
+            if (modal.classList.contains('hidden')) {
+                const nameInput = document.getElementById('EditCategoryName');
+                const idInput = document.getElementById('EditCategoryId');
+                if (nameInput) nameInput.value = '';
+                if (idInput) idInput.value = '';
+                const checkboxes = document.querySelectorAll('#editCategoryModal input[name="BaseCategoryIds"]');
+                checkboxes.forEach(cb => cb.checked = false);
+            }
+        }
+
+        function openEditCategoryModal(categoryId, name, baseCategoryIds) {
+            console.log('Opening edit modal:', { categoryId, name, baseCategoryIds });
+            const idInput = document.getElementById('EditCategoryId');
+            const nameInput = document.getElementById('EditCategoryName');
+            if (!idInput || !nameInput) {
+                console.error('Edit modal inputs not found:', { idInput, nameInput });
+                return;
+            }
+            idInput.value = categoryId;
+            nameInput.value = name;
+            const idsArray = (baseCategoryIds || '').split(',').filter(id => id.trim());
+            console.log('Parsed baseCategoryIds:', idsArray);
+            const checkboxes = document.querySelectorAll('#editCategoryModal input[name="BaseCategoryIds"]');
+            checkboxes.forEach(cb => {
+                cb.checked = idsArray.includes(cb.value);
+            });
+            toggleEditCategoryModal();
         }
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -470,5 +562,16 @@
             }
         });
     </script>
+    @* Helper to get base category IDs *@
+    @{
+        string GetBaseCategoryIds(ExpenseTracker.API.CategoryDto category)
+        {
+            var baseCategoryIds = Model.Categories
+            .Where(c => c.IsBuiltIn && c.MccCodes.Any(mcc => category.MccCodes.Contains(mcc)))
+            .Select(c => c.Id.ToString())
+            .ToList();
+            return string.Join(",", baseCategoryIds);
+        }
+    }
 </body>
 </html>

@@ -96,6 +96,50 @@ namespace ExpenseTracker.API
             await _context.SaveChangesAsync();
         }
 
+        public async Task RemoveTransactionCategoriesAsync(Guid categoryId, List<Guid> transactionIds)
+        {
+            if (transactionIds == null || !transactionIds.Any())
+                return;
+
+            var transactionCategories = await _context.TransactionCategories
+                .Where(tc => tc.CategoryId == categoryId && transactionIds.Contains(tc.TransactionId))
+                .ToListAsync();
+
+            if (transactionCategories.Any())
+            {
+                _context.TransactionCategories.RemoveRange(transactionCategories);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task ReassignOrphanedTransactionsAsync(List<Guid> transactionIds, Guid defaultCategoryId)
+        {
+            if (transactionIds == null || !transactionIds.Any())
+                return;
+
+            var categoryExists = await _context.Categories.AnyAsync(c => c.Id == defaultCategoryId);
+            if (!categoryExists)
+                throw new InvalidOperationException($"Default category with ID {defaultCategoryId} does not exist.");
+
+            var transactionsToReassign = await _context.Transactions
+                .Where(t => transactionIds.Contains(t.Id))
+                .Where(t => !_context.TransactionCategories.Any(tc => tc.TransactionId == t.Id))
+                .Select(t => t.Id)
+                .ToListAsync();
+
+            if (transactionsToReassign.Any())
+            {
+                var defaultTransactionCategories = transactionsToReassign.Select(tId => new TransactionCategory
+                {
+                    TransactionId = tId,
+                    CategoryId = defaultCategoryId,
+                    IsBaseCategory = true
+                }).ToList();
+                _context.TransactionCategories.AddRange(defaultTransactionCategories);
+                await _context.SaveChangesAsync();
+            }
+        }
+
         public async Task AddRangeAsync(IEnumerable<Transaction> transactions)
         {
             if (transactions == null || !transactions.Any())
@@ -137,9 +181,12 @@ namespace ExpenseTracker.API
                 .ToListAsync();
         }
 
-        public async Task AddTransactionCategoryAsync(TransactionCategory transactionCategory)
+        public async Task AddTransactionCategoriesAsync(List<TransactionCategory> transactionCategories)
         {
-            await _context.TransactionCategories.AddAsync(transactionCategory);
+            if (transactionCategories != null || !transactionCategories.Any())
+                return;
+
+            await _context.TransactionCategories.AddRangeAsync(transactionCategories);
             await _context.SaveChangesAsync();
         }
     }

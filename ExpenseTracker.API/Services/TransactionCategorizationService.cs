@@ -25,7 +25,7 @@ namespace ExpenseTracker.API
                 return (await _categoryRepository.GetDefaultCategoryAsync())?.Id ?? throw new InvalidOperationException("Default category not found.");
             }
 
-            var categories = await _categoryRepository.GetAllAsync(null); // Built-in only
+            var categories = await _categoryRepository.GetAllAsync(null);
             var matchingCategory = categories.FirstOrDefault(c =>
                 !string.IsNullOrEmpty(c.MccCodes) && c.MccCodesArray.Contains(mccCode.Value));
 

@@ -11,7 +11,6 @@ namespace ExpenseTracker.Web.Pages
     public class MainPageModel : PageModel
     {
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly IUserRepository _userRepository;
         private readonly ILogger<MainPageModel> _logger;
 
         public User UserInformation { get; set; } = new User();
@@ -21,31 +20,31 @@ namespace ExpenseTracker.Web.Pages
         public List<CategorySpendingInfo> IncomeByCategory { get; set; } = new List<CategorySpendingInfo>();
         public List<TransactionDescriptionInfo> ExpenseDescriptionChartData { get; set; } = new List<TransactionDescriptionInfo>();
         public List<TransactionDescriptionInfo> IncomeDescriptionChartData { get; set; } = new List<TransactionDescriptionInfo>();
-        public string ModelError { get; set; }
-        public string CategoryDeleteError { get; set; }
-        public string CategoryEditError { get; set; }
+        public string ?ModelError { get; set; }
+        public string ?CategoryDeleteError { get; set; }
+        public string ?CategoryEditError { get; set; }
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 15;
         public bool HasMoreTransactions { get; set; }
 
         [BindProperty]
-        public string NewCategoryName { get; set; }
+        public string ?NewCategoryName { get; set; }
         [BindProperty]
         public List<Guid> BaseCategoryIds { get; set; } = new List<Guid>();
+        [BindProperty]
+        public Guid EditCategoryId { get; set; }
 
         public MainPageModel(
             IHttpClientFactory httpClientFactory,
-            IUserRepository userRepository,
             ILogger<MainPageModel> logger)
         {
             _httpClientFactory = httpClientFactory;
-            _userRepository = userRepository;
             _logger = logger;
         }
 
         public async Task<IActionResult> OnGetAsync(Guid? id, int pageNumber = 1)
         {
-            PageNumber = pageNumber < 1 ? 1 : pageNumber; // Ensure valid page number
+            PageNumber = pageNumber < 1 ? 1 : pageNumber;
 
             var jwt = Request.Cookies["jwt"];
             if (string.IsNullOrEmpty(jwt))
@@ -66,13 +65,6 @@ namespace ExpenseTracker.Web.Pages
                 }
 
                 UserInformation = await responseUser.Content.ReadFromJsonAsync<User>() ?? new User();
-
-                var user = await _userRepository.GetByIdAsync(UserInformation.Id);
-                if (user == null)
-                {
-                    _logger.LogWarning("User not found: {UserId}", UserInformation.Id);
-                    return RedirectToPage("/Auth/Login");
-                }
             }
             catch (Exception ex)
             {
@@ -94,7 +86,6 @@ namespace ExpenseTracker.Web.Pages
                         Transactions = await response.Content.ReadFromJsonAsync<List<TransactionDto>>() ?? new List<TransactionDto>();
                         _logger.LogInformation("Fetched {TransactionCount} transactions for category {CategoryId}", Transactions.Count, id.Value);
 
-                        // Check for more transactions
                         var nextPageQuery = $"api/transaction/category/{id.Value}?pageNumber={PageNumber + 1}&pageSize={PageSize}";
                         _logger.LogInformation("Checking next page: {Query}", nextPageQuery);
                         var nextPageResponse = await client.GetAsync(nextPageQuery);
@@ -442,63 +433,65 @@ namespace ExpenseTracker.Web.Pages
 
             return RedirectToPage(new { id = Request.Query["id"], pageNumber = PageNumber });
         }
-        /*
-        public async Task<IActionResult> OnPostEditCategoryAsync(string CategoryId, string CategoryName, List<Guid> BaseCategoryIds)
+
+        public async Task<IActionResult> OnPostEditCategoryAsync()
         {
             var jwt = Request.Cookies["jwt"];
             if (string.IsNullOrEmpty(jwt))
             {
-                _logger.LogWarning("No JWT found for category edit");
+                _logger.LogWarning("No JWT found for category creation");
                 return RedirectToPage("/Auth/Login");
             }
 
-            if (!Guid.TryParse(CategoryId, out var id))
+            if (string.IsNullOrWhiteSpace(NewCategoryName))
             {
-                CategoryEditError = "Некоректний ідентифікатор категорії.";
-                _logger.LogWarning($"Invalid category ID format: {CategoryId}");
+                CategoryEditError = "Category name is required.";
                 return Page();
             }
 
-            if (string.IsNullOrWhiteSpace(CategoryName))
+            if (EditCategoryId == Guid.Empty)
             {
-                CategoryEditError = "Назва категорії не може бути порожньою.";
-                _logger.LogWarning("Empty category name provided for edit");
+                CategoryEditError = "Invalid category ID.";
                 return Page();
             }
-
-            var client = _httpClientFactory.CreateClient("ExpenseTrackerApi");
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", jwt);
 
             var updateCategoryDto = new UpdateCategoryDto
             {
-                Name = CategoryName,
-                ParentCategoryIds = BaseCategoryIds ?? new List<Guid>()
+                Name = NewCategoryName,
+                BaseCategoryIds = BaseCategoryIds ?? new List<Guid>()
             };
 
             try
             {
-                _logger.LogInformation($"Editing category {id} with name {CategoryName} and parent IDs {string.Join(",", BaseCategoryIds ?? new List<Guid>())}");
-                var response = await client.PutAsJsonAsync($"api/category/{id}", updateCategoryDto);
+                var client = _httpClientFactory.CreateClient("ExpenseTrackerApi");
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", jwt);
+
+                var response = await client.PutAsJsonAsync($"api/category/{EditCategoryId}", updateCategoryDto);
                 if (response.IsSuccessStatusCode)
                 {
-                    _logger.LogInformation($"Successfully edited category {id}");
-                    await LoadCategoriesAsync(client); // Refresh categories
+                    NewCategoryName = string.Empty;
+                    BaseCategoryIds = new List<Guid>();
+                    EditCategoryId = Guid.Empty;
                     return RedirectToPage();
                 }
-
-                var errorContent = await response.Content.ReadAsStringAsync();
-                CategoryEditError = $"Помилка редагування категорії: {errorContent}";
-                _logger.LogWarning($"Failed to edit category {id}: {errorContent}");
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    CategoryEditError = $"Failed to update category: {errorContent}";
+                    return Page();
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                CategoryEditError = $"Error connecting to the API: {ex.Message}";
+                return Page();
             }
             catch (Exception ex)
             {
-                CategoryEditError = $"Помилка: {ex.Message}";
-                _logger.LogError(ex, $"Error editing category {id}");
+                CategoryEditError = $"Unexpected error: {ex.Message}";
+                return Page();
             }
-
-            return Page();
         }
-        */
 
         public async Task<IActionResult> OnPostDeleteCategoryAsync(string categoryId)
         {

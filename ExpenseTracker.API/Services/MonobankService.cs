@@ -7,7 +7,6 @@ namespace ExpenseTracker.API
     {
         private readonly HttpClient _httpClient;
         private readonly ITransactionRepository _transactionRepository;
-        private readonly ICategoryRepository _categoryRepository;
         private readonly TransactionCategorizationService _categorizationService;
         private readonly ILogger<MonobankService> _logger;
         private const string BaseUrl = "https://api.monobank.ua";
@@ -15,13 +14,11 @@ namespace ExpenseTracker.API
         public MonobankService(
             HttpClient httpClient,
             ITransactionRepository transactionRepository,
-            ICategoryRepository categoryRepository,
             TransactionCategorizationService categorizationService,
             ILogger<MonobankService> logger)
         {
             _httpClient = httpClient;
             _transactionRepository = transactionRepository;
-            _categoryRepository = categoryRepository;
             _categorizationService = categorizationService;
             _logger = logger;
         }

@@ -16,7 +16,12 @@ namespace ExpenseTracker.API
         [Required]
         public string Name { get; set; }
         public List<Guid> ParentCategoryIds { get; set; }
-        public bool IsBuiltIn { get; set; }
+    }
+    public class UpdateCategoryDto
+    {
+        [Required]
+        public string Name { get; set; }
+        public List<Guid> BaseCategoryIds { get; set; } = new List<Guid>();
     }
 
     public class TransactionDto
