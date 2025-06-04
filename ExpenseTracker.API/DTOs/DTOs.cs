@@ -77,4 +77,18 @@ namespace ExpenseTracker.API
         public List<Guid> TransactionIds { get; set; }
         public Guid CategoryId { get; set; }
     }
+    public class UpdateUserCredentialsRequest
+    {
+        [Required(ErrorMessage = "Поточний пароль обов'язковий")]
+        public string CurrentPassword { get; set; }
+
+        [StringLength(25, MinimumLength = 4, ErrorMessage = "Новий логін має бути від 4 до 25 символів")]
+        public string? NewLogin { get; set; }
+
+        [StringLength(25, MinimumLength = 8, ErrorMessage = "Новий пароль має бути від 8 до 25 символів")]
+        public string? NewPassword { get; set; }
+
+        [Compare("NewPassword", ErrorMessage = "Паролі не співпадають")]
+        public string? ConfirmNewPassword { get; set; }
+    }
 }

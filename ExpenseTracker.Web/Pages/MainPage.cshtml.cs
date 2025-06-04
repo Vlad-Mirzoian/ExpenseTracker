@@ -20,19 +20,22 @@ namespace ExpenseTracker.Web.Pages
         public List<CategorySpendingInfo> IncomeByCategory { get; set; } = new List<CategorySpendingInfo>();
         public List<TransactionDescriptionInfo> ExpenseDescriptionChartData { get; set; } = new List<TransactionDescriptionInfo>();
         public List<TransactionDescriptionInfo> IncomeDescriptionChartData { get; set; } = new List<TransactionDescriptionInfo>();
-        public string ?ModelError { get; set; }
-        public string ?CategoryDeleteError { get; set; }
-        public string ?CategoryEditError { get; set; }
+        public string? ModelError { get; set; }
+        public string? CategoryDeleteError { get; set; }
+        public string? CategoryEditError { get; set; }
+        public string? ChangeCredentialsError { get; set; }
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 15;
         public bool HasMoreTransactions { get; set; }
 
         [BindProperty]
-        public string ?NewCategoryName { get; set; }
+        public string? NewCategoryName { get; set; }
         [BindProperty]
         public List<Guid> BaseCategoryIds { get; set; } = new List<Guid>();
         [BindProperty]
         public Guid EditCategoryId { get; set; }
+        [BindProperty]
+        public UpdateUserCredentialsRequest ChangeCredentialsInput { get; set; }
 
         public MainPageModel(
             IHttpClientFactory httpClientFactory,
@@ -461,11 +464,11 @@ namespace ExpenseTracker.Web.Pages
                 BaseCategoryIds = BaseCategoryIds ?? new List<Guid>()
             };
 
+            var client = _httpClientFactory.CreateClient("ExpenseTrackerApi");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", jwt);
+
             try
             {
-                var client = _httpClientFactory.CreateClient("ExpenseTrackerApi");
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", jwt);
-
                 var response = await client.PutAsJsonAsync($"api/category/{EditCategoryId}", updateCategoryDto);
                 if (response.IsSuccessStatusCode)
                 {
@@ -541,9 +544,59 @@ namespace ExpenseTracker.Web.Pages
 
             return Page();
         }
+        public async Task<IActionResult> OnPostChangeCredentialsAsync()
+        {
+            var jwt = Request.Cookies["jwt"];
+            if (string.IsNullOrEmpty(jwt))
+            {
+                return RedirectToPage("/Auth/Login");
+            }
 
+            if (!ModelState.IsValid)
+            {
+                ChangeCredentialsError = "Будь ласка, виправте помилки у формі.";
+                return Page();
+            }
+
+            var client = _httpClientFactory.CreateClient("ExpenseTrackerApi");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", jwt);
+
+            try
+            {
+                var request = new
+                {
+                    ChangeCredentialsInput.CurrentPassword,
+                    ChangeCredentialsInput.NewLogin,
+                    ChangeCredentialsInput.NewPassword,
+                    ChangeCredentialsInput.ConfirmNewPassword
+                };
+
+                var response = await client.PutAsJsonAsync("api/auth/user", request);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = JsonSerializer.Deserialize<Dictionary<string, string>>(responseContent);
+                    ChangeCredentialsError = error?.ContainsKey("message") == true ? error["message"] : "Не вдалося оновити дані.";
+                    return Page();
+                }
+
+                var successResponse = JsonSerializer.Deserialize<Dictionary<string, object>>(responseContent);
+                if (successResponse?.ContainsKey("token") == true)
+                {
+                    UserInformation.Login = ChangeCredentialsInput.NewLogin;
+                }
+
+                ChangeCredentialsInput = new UpdateUserCredentialsRequest();
+                return RedirectToPage();
+            }
+            catch (Exception ex)
+            {
+                ChangeCredentialsError = $"Помилка: {ex.Message}";
+                return Page();
+            }
+        }
     }
-
     public record CategorySpendingInfo
     {
         public Guid CategoryId { get; init; }

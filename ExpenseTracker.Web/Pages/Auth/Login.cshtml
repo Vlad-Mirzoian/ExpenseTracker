@@ -4,93 +4,34 @@
     ViewData["Title"] = "Вхід";
 }
 
-<style>
-    body {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        background: url('background-image.jpg') no-repeat center center fixed;
-        background-size: cover;
-        font-family: Arial, sans-serif;
-    }
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"]</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
 
-    .login-container {
-        background-color: rgba(255, 255, 255, 0.9);
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        width: 300px;
-        text-align: center;
-    }
-
-        .login-container h2 {
-            margin-bottom: 20px;
-        }
-
-        .login-container label {
-            display: block;
-            margin-top: 10px;
-            text-align: left;
-        }
-
-        .login-container input {
-            width: 100%;
-            padding: 10px;
-            margin-top: 5px;
-            margin-bottom: 15px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-
-        .login-container button {
-            width: 100%;
-            padding: 10px;
-            background-color: #007bff;
-            border: none;
-            border-radius: 5px;
-            color: white;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-            .login-container button:hover {
-                background-color: #0056b3;
+<div class="min-h-screen flex items-center justify-center bg-gray-100 bg-cover bg-center" style="background-image: url('/img/background-image.jpg')">
+    <div class="bg-white bg-opacity-90 p-6 rounded-lg shadow-xl w-full max-w-md">
+        <h2 class="text-2xl font-semibold text-gray-900 mb-6 text-center">Вхід</h2>
+        <form method="post" class="space-y-4">
+            @Html.AntiForgeryToken()
+            <div>
+                <label for="Login" class="block text-sm font-medium text-gray-700">Логін</label>
+                <input type="text" id="Login" name="Login" value="@Model.Login" class="mt-1 w-full border border-gray-300 rounded-md px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500" required aria-required="true" placeholder="Логін" maxlength="25" pattern="[a-zA-Z0-9_-]+" title="Логін може містити лише літери, цифри, підкреслення або дефіси" />
+                @Html.ValidationMessageFor(m => m.Login, "", new { @class = "text-red-600 text-sm mt-1" })
+            </div>
+            <div>
+                <label for="Password" class="block text-sm font-medium text-gray-700">Пароль</label>
+                <input type="password" id="Password" name="Password" class="mt-1 w-full border border-gray-300 rounded-md px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500" required aria-required="true" placeholder="Пароль" maxlength="25" pattern="(?=.*[A-Za-z])(?=.*\d).+" title="Пароль має містити принаймні одну літеру та одну цифру" />
+                @Html.ValidationMessageFor(m => m.Password, "", new { @class = "text-red-600 text-sm mt-1" })
+            </div>
+            @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+            {
+                <p id="errorMessage" class="text-red-600 text-sm">@Model.ErrorMessage</p>
             }
-
-        .login-container a {
-            display: block;
-            margin-top: 15px;
-            color: #007bff;
-            text-decoration: none;
-        }
-
-            .login-container a:hover {
-                text-decoration: underline;
-            }
-
-        .login-container p {
-            color: red;
-        }
-</style>
-
-<div class="login-container">
-    <h2>Вхід</h2>
-    <form method="post">
-        @Html.AntiForgeryToken()
-        <label for="Login">Логін</label>
-        <input type="text" id="Login" name="Login" value="@Model.Login" required />
-
-        <label for="Password">Пароль</label>
-        <input type="password" id="Password" name="Password" value="@Model.Password" required />
-
-        <button type="submit">Увійти</button>
-    </form>
-    <a href="/Auth/Register">Реєстрація</a>
-
-    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
-    {
-        <p>@Model.ErrorMessage</p>
-    }
+            <button type="submit" class="w-full bg-blue-600 text-white px-4 py-3 rounded-md hover:bg-blue-700 transition focus:outline-none focus:ring-2 focus:ring-blue-500">Увійти</button>
+        </form>
+        <a href="/Auth/Register" class="block mt-4 text-center text-blue-600 hover:text-blue-700 hover:underline">Реєстрація</a>
+    </div>
 </div>

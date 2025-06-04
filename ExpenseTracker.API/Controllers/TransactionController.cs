@@ -313,24 +313,5 @@ namespace ExpenseTracker.API
             await _transactionRepository.UpdateCategoryForTransactionsAsync(request.CategoryId, request.TransactionIds);
             return NoContent();
         }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteTransaction(Guid id)
-        {
-            var transaction = await _transactionRepository.GetByIdAsync(id);
-            if (transaction == null)
-            {
-                return NotFound();
-            }
-
-            var currentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
-            if (transaction.UserId != currentUserId)
-            {
-                return Forbid();
-            }
-
-            await _transactionRepository.DeleteAsync(id);
-            return NoContent();
-        }
     }
 }

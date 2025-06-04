@@ -126,5 +126,56 @@ namespace ExpenseTracker.API
         {
             return Ok(new { message = "Выход выполнен успешно" });
         }
+
+        [Authorize]
+        [HttpPut("user")]
+        public async Task<IActionResult> UpdateUserCredentials([FromBody] UpdateUserCredentialsRequest request)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userId == null)
+            {
+                return Unauthorized(new { message = "Користувач не авторизований" });
+            }
+
+            var user = await _userRepository.GetByIdAsync(Guid.Parse(userId));
+            if (user == null)
+            {
+                return NotFound(new { message = "Користувача не знайдено" });
+            }
+
+            // Verify current password
+            if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
+            {
+                return BadRequest(new { message = "Невірний поточний пароль" });
+            }
+
+            // Validate: at least one field must be provided
+            if (string.IsNullOrWhiteSpace(request.NewLogin) && string.IsNullOrWhiteSpace(request.NewPassword))
+            {
+                return BadRequest(new { message = "Потрібно вказати новий логін або пароль" });
+            }
+
+            // Validate password confirmation
+            if (!string.IsNullOrWhiteSpace(request.NewPassword) && request.NewPassword != request.ConfirmNewPassword)
+            {
+                return BadRequest(new { message = "Новий пароль і підтвердження не співпадають" });
+            }
+
+            // Update credentials
+            var success = await _userRepository.UpdateUserCredentialsAsync(Guid.Parse(userId), request.NewLogin, request.NewPassword);
+            if (!success)
+            {
+                return BadRequest(new { message = "Не вдалося оновити дані. Логін може бути вже зайнятий." });
+            }
+
+            // Generate new JWT if login changed
+            if (!string.IsNullOrWhiteSpace(request.NewLogin))
+            {
+                var newToken = GenerateJwtToken(user);
+                return Ok(new { message = "Логін і/або пароль успішно оновлено", token = newToken });
+            }
+
+            return Ok(new { message = "Пароль успішно оновлено" });
+        }
     }
 }

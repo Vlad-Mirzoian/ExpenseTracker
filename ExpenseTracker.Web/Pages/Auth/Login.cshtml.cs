@@ -1,10 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using System.ComponentModel.DataAnnotations;
 using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text;
-using System.Threading.Tasks;
-using System.ComponentModel.DataAnnotations;
 
 namespace ExpenseTracker.Web.Pages.Auth
 {
@@ -19,12 +17,15 @@ namespace ExpenseTracker.Web.Pages.Auth
 
         [BindProperty]
         [Required(ErrorMessage = "Логін обов'язковий")]
-        [MinLength(4, ErrorMessage = "Логін повинен містити щонайменше 4 символи")]
+        [StringLength(25, MinimumLength = 4, ErrorMessage = "Логін має бути від 4 до 25 символів")]
+        [RegularExpression(@"^[a-zA-Z0-9_-]+$", ErrorMessage = "Логін може містити лише літери, цифри, підкреслення або дефіси")]
         public string Login { get; set; }
 
         [BindProperty]
         [Required(ErrorMessage = "Пароль обов'язковий")]
-        [MinLength(8, ErrorMessage = "Пароль повинен містити щонайменше 8 символів")]
+        [StringLength(25, MinimumLength = 8, ErrorMessage = "Пароль має бути від 8 до 25 символів")]
+        [RegularExpression(@"^(?=.*[A-Za-z])(?=.*\d).+$", ErrorMessage = "Пароль має містити принаймні одну літеру та одну цифру")]
+        [DataType(DataType.Password)]
         public string Password { get; set; }
 
         public string ErrorMessage { get; set; }
@@ -36,26 +37,42 @@ namespace ExpenseTracker.Web.Pages.Auth
                 return Page();
             }
 
-            var loginData = new { Login, Password };
-            var client = _httpClientFactory.CreateClient("ExpenseTrackerApi");
-            var response = await client.PostAsJsonAsync("api/auth/login", loginData);
+            try
+            {
+                var loginData = new { Login, Password };
+                var client = _httpClientFactory.CreateClient("ExpenseTrackerApi");
+                var response = await client.PostAsJsonAsync("api/auth/login", loginData);
 
-            if (response.IsSuccessStatusCode)
-            {
-                var authResponse = await response.Content.ReadFromJsonAsync<AuthResponse>();
-                Response.Cookies.Append("jwt", authResponse.Token, new CookieOptions
+                if (response.IsSuccessStatusCode)
                 {
-                    HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.Strict,
-                    Path = "/"
-                });
-                return Redirect("/MainPage");
+                    var authResponse = await response.Content.ReadFromJsonAsync<AuthResponse>();
+                    if (authResponse?.Token != null)
+                    {
+                        Response.Cookies.Append("jwt", authResponse.Token, new CookieOptions
+                        {
+                            HttpOnly = true,
+                            Secure = true,
+                            SameSite = SameSiteMode.Strict,
+                            Path = "/",
+                            Expires = DateTimeOffset.UtcNow.AddDays(1)
+                        });
+                        return RedirectToPage("/MainPage");
+                    }
+                    ErrorMessage = "Отримано некоректну відповідь від сервера.";
+                    return Page();
+                }
+                else
+                {
+                    var errorResponse = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+                    ErrorMessage = errorResponse?.Message ?? "Невірний логін або пароль.";
+                    ModelState.AddModelError(string.Empty, ErrorMessage);
+                    return Page();
+                }
             }
-            else
+            catch (Exception ex)
             {
-                var errorResponse = await response.Content.ReadFromJsonAsync<ErrorResponse>();
-                ModelState.AddModelError("", errorResponse?.Message ?? "Помилка входу. Перевірте логін і пароль.");
+                ErrorMessage = $"Помилка: {ex.Message}";
+                ModelState.AddModelError(string.Empty, ErrorMessage);
                 return Page();
             }
         }
