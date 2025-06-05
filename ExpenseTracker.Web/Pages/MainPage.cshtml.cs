@@ -75,7 +75,18 @@ namespace ExpenseTracker.Web.Pages
                 return RedirectToPage("/Auth/Login");
             }
 
+            if (UserInformation.Id == Guid.Empty)
+            {
+                ModelError = "Помилка: некоректний ідентифікатор користувача.";
+                return Page();
+            }
+
             await LoadCategoriesAsync(client);
+
+            if (!Categories.Any() && string.IsNullOrEmpty(ModelError))
+            {
+                ModelError = "Категорії відсутні для користувача.";
+            }
 
             if (id.HasValue)
             {
@@ -181,6 +192,10 @@ namespace ExpenseTracker.Web.Pages
             {
                 await LoadTransactionsAsync(client);
 
+                if (!Transactions.Any() && string.IsNullOrEmpty(ModelError))
+                {
+                    ModelError = "Транзакції відсутні для користувача.";
+                }
                 var expenses = Transactions.Where(t => t.TransactionType == "Expense").ToList();
                 var income = Transactions.Where(t => t.TransactionType == "Income").ToList();
 
@@ -221,6 +236,11 @@ namespace ExpenseTracker.Web.Pages
                     .OrderByDescending(c => c.TotalAmount)
                     .ToList();
 
+                if (!CategorySpending.Any() && !IncomeByCategory.Any() && Transactions.Any())
+                {
+                    ModelError = "Транзакції не відповідають жодній категорії.";
+                }
+
                 return Page();
             }
         }
@@ -228,110 +248,124 @@ namespace ExpenseTracker.Web.Pages
         private async Task LoadCategoriesAsync(HttpClient client)
         {
             const int maxRetries = 3;
+            const int maxRateLimitRetries = 5;
+            int rateLimitRetries = 0;
+
             for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
                 try
                 {
-                    _logger.LogInformation("Fetching categories, attempt {Attempt}", attempt);
                     var response = await client.GetAsync("api/category");
                     if (response.IsSuccessStatusCode)
                     {
                         Categories = await response.Content.ReadFromJsonAsync<List<CategoryDto>>() ?? new List<CategoryDto>();
-                        _logger.LogInformation("Fetched {CategoryCount} categories", Categories.Count);
                         return;
                     }
-                    _logger.LogWarning("Failed to fetch categories: {StatusCode}, attempt {Attempt}", response.StatusCode, attempt);
-                    if (attempt == maxRetries)
+                    else if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests && rateLimitRetries < maxRateLimitRetries)
                     {
-                        ModelError = "Не вдалося завантажити категорії.";
+                        rateLimitRetries++;
+                        var retryAfter = response.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(120);
+                        await Task.Delay(retryAfter);
+                        continue;
+                    }
+                    else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    {
+                        Categories = new List<CategoryDto>();
+                        return;
                     }
                     await Task.Delay(500 * attempt);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error fetching categories, attempt {Attempt}", attempt);
-                    if (attempt == maxRetries)
-                    {
-                        ModelError = "Помилка завантаження категорій.";
-                    }
                     await Task.Delay(500 * attempt);
                 }
             }
+
+            ModelError = "Помилка завантаження категорій з бази даних.";
         }
 
         private async Task LoadTransactionsAsync(HttpClient client)
         {
             const int maxRetries = 3;
+            const int maxRateLimitRetries = 5;
+            int rateLimitRetries = 0;
+
+            if (UserInformation.Id == Guid.Empty)
+            {
+                ModelError = "Помилка: некоректний ідентифікатор користувача.";
+                Transactions = new List<TransactionDto>();
+                return;
+            }
+
+            // Attempt to fetch transactions from Monobank API
             for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
                 try
                 {
-                    _logger.LogInformation("Fetching transactions from Monobank API for user {UserId}, attempt {Attempt}", UserInformation.Id, attempt);
                     var response = await client.GetAsync($"api/monobank/transactions/{UserInformation.Id}");
                     if (response.IsSuccessStatusCode)
                     {
                         Transactions = await response.Content.ReadFromJsonAsync<List<TransactionDto>>() ?? new List<TransactionDto>();
-                        _logger.LogInformation("Fetched {TransactionCount} transactions for user {UserId}", Transactions.Count, UserInformation.Id);
                         return;
                     }
-                    _logger.LogWarning("Failed to fetch transactions from Monobank API for user {UserId}: {StatusCode}, attempt {Attempt}", UserInformation.Id, response.StatusCode);
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogWarning("Monobank API error details: {ErrorContent}", errorContent);
-
-                    if (attempt == maxRetries)
+                    else if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests && rateLimitRetries < maxRateLimitRetries)
                     {
-                        _logger.LogInformation("Falling back to database API for transactions for user {UserId}", UserInformation.Id);
-                        var fallbackResponse = await client.GetAsync($"api/transaction/user/{UserInformation.Id}");
-                        if (fallbackResponse.IsSuccessStatusCode)
-                        {
-                            Transactions = await fallbackResponse.Content.ReadFromJsonAsync<List<TransactionDto>>() ?? new List<TransactionDto>();
-                            _logger.LogInformation("Fetched {TransactionCount} transactions from database API for user {UserId}", Transactions.Count, UserInformation.Id);
-                            if (!Transactions.Any())
-                            {
-                                ModelError = "Не вдалося завантажити транзакції. Використано локальні дані.";
-                            }
-                        }
-                        else
-                        {
-                            _logger.LogWarning("Failed to fetch transactions from database API for user {UserId}: {StatusCode}", UserInformation.Id, fallbackResponse.StatusCode);
-                            ModelError = "Не вдалося завантажити транзакції.";
-                        }
+                        rateLimitRetries++;
+                        var retryAfter = response.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(120);
+                        await Task.Delay(retryAfter);
+                        continue;
                     }
+                    else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    {
+                        Transactions = new List<TransactionDto>();
+                        return;
+                    }
+                    _logger.LogWarning("Failed to fetch transactions from Monobank API for user {UserId}: {StatusCode}, attempt {Attempt}", UserInformation.Id, response.StatusCode, attempt);
+                    var errorContent = await response.Content.ReadAsStringAsync();
                     await Task.Delay(500 * attempt);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error fetching transactions from Monobank API for user {UserId}, attempt {Attempt}", UserInformation.Id, attempt);
-                    if (attempt == maxRetries)
-                    {
-                        _logger.LogInformation("Falling back to database API for transactions for user {UserId}", UserInformation.Id);
-                        try
-                        {
-                            var fallbackResponse = await client.GetAsync($"api/transaction/user/{UserInformation.Id}");
-                            if (fallbackResponse.IsSuccessStatusCode)
-                            {
-                                Transactions = await fallbackResponse.Content.ReadFromJsonAsync<List<TransactionDto>>() ?? new List<TransactionDto>();
-                                _logger.LogInformation("Fetched {TransactionCount} transactions from database API for user {UserId}", Transactions.Count, UserInformation.Id);
-                                if (!Transactions.Any())
-                                {
-                                    ModelError = "Не вдалося завантажити транзакції. Використано локальні дані.";
-                                }
-                            }
-                            else
-                            {
-                                _logger.LogWarning("Failed to fetch transactions from database API for user {UserId}: {StatusCode}", UserInformation.Id, fallbackResponse.StatusCode);
-                                ModelError = "Не вдалося завантажити транзакції.";
-                            }
-                        }
-                        catch (Exception fallbackEx)
-                        {
-                            _logger.LogError(fallbackEx, "Error fetching transactions from database API for user {UserId}", UserInformation.Id);
-                            ModelError = "Помилка завантаження транзакцій.";
-                        }
-                    }
                     await Task.Delay(500 * attempt);
                 }
             }
+
+            rateLimitRetries = 0;
+            for (int dbAttempt = 1; dbAttempt <= maxRetries; dbAttempt++)
+            {
+                try
+                {
+                    var fallbackResponse = await client.GetAsync("api/transaction");
+                    if (fallbackResponse.IsSuccessStatusCode)
+                    {
+                        Transactions = await fallbackResponse.Content.ReadFromJsonAsync<List<TransactionDto>>() ?? new List<TransactionDto>();
+                        if (!Transactions.Any())
+                        {
+                            ModelError = "Транзакції відсутні в базі даних для користувача.";
+                        }
+                        return;
+                    }
+                    else if (fallbackResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    {
+                        Transactions = new List<TransactionDto>();
+                        ModelError = "Транзакції відсутні в базі даних для користувача.";
+                        return;
+                    }
+                    else if (fallbackResponse.StatusCode == System.Net.HttpStatusCode.TooManyRequests && rateLimitRetries < maxRateLimitRetries)
+                    {
+                        rateLimitRetries++;
+                        var retryAfter = fallbackResponse.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(120);
+                        await Task.Delay(retryAfter);
+                        continue;
+                    }
+                    await Task.Delay(500 * dbAttempt);
+                }
+                catch (Exception ex)
+                {
+                    await Task.Delay(500 * dbAttempt);
+                }
+            }
+            ModelError = "Помилка завантаження транзакцій з API або бази даних.";
         }
 
         public IActionResult OnPostLogout()

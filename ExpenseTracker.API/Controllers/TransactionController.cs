@@ -26,7 +26,10 @@ namespace ExpenseTracker.API
         public async Task<ActionResult<IEnumerable<TransactionDto>>> GetTransactions()
         {
             var currentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
-            var transactions = await _transactionRepository.FindAsync(t => t.UserId == currentUserId);
+            var fromDate = DateTime.UtcNow.AddMonths(-12); // Last 12 months
+            var toDate = DateTime.UtcNow;
+
+            var transactions = await _transactionRepository.GetTransactionsByUserAndDateAsync(currentUserId, fromDate, toDate);
             var transactionDtos = transactions.Select(t => new TransactionDto
             {
                 Id = t.Id,

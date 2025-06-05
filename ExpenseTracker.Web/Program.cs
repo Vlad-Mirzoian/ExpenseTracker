@@ -10,17 +10,16 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Добавляем Razor Pages и поддержку API-контроллеров
 builder.Services.AddRazorPages();
 builder.Services.AddControllers();
 builder.Services.AddHttpClient("ExpenseTrackerApi", client =>
 {
     client.BaseAddress = new Uri("https://localhost:7151/");
 });
-// Загружаем конфигурацию из appsettings.json
+
 builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 builder.Configuration.AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true);
-// Добавляем зависимости
+
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
@@ -29,7 +28,7 @@ if (string.IsNullOrEmpty(jwtSecretKey))
 {
     throw new InvalidOperationException("❌ Ошибка: Jwt:SecretKey отсутствует в конфигурации.");
 }
-// ✅ Добавляем Аутентификацию **до** `builder.Build();`
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -55,13 +54,13 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseRouting();
-app.UseAuthentication(); // Аутентификация должна быть до авторизации
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapStaticAssets();
 app.MapRazorPages().WithStaticAssets();
 app.MapControllers();
 
-// Перенаправление на Login при старте
+
 app.Use(async (context, next) =>
 {
     if (context.Request.Path == "/")

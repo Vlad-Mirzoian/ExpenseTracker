@@ -15,34 +15,38 @@
         .sidebar {
             transition: transform 0.3s ease-in-out;
         }
-
-            .sidebar.active {
-                transform: translateX(0);
-            }
-
+        .sidebar.active {
+            transform: translateX(0);
+        }
         .modal {
             transition: opacity 0.3s ease-in-out;
         }
-
         .modal-content {
             transition: transform 0.3s ease-in-out;
         }
-
         .chart-container {
-            max-width: 448px; /* Tailwind max-w-md */
-            max-height: 400px;
+            position: relative;
+            max-width: 525px;
+            height: 350px;
             margin: 0 auto;
+            overflow: hidden;
         }
-
+        .chart-wrapper {
+            margin-bottom: 1.5rem;
+        }
         canvas {
             width: 100% !important;
             height: auto !important;
+            position: relative !important;
+        }
+        .transaction-list, .category-list {
+            clear: both;
         }
     </style>
 </head>
 <body class="bg-gray-100 font-inter">
     <nav class="fixed top-0 left-0 right-0 bg-white shadow-md z-20">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto px-4">
             <div class="flex justify-between items-center h-16">
                 <div class="text-xl font-bold text-gray-900">Трекер витрат</div>
                 <div class="flex items-center space-x-4">
@@ -125,29 +129,43 @@
             </div>
         </aside>
 
-        <main class="flex-1 p-6 md:mr-64">
+        <main class="flex-1 p-6">
             <h2 class="text-2xl font-bold text-gray-900 mb-6">Огляд фінансів</h2>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div class="flex flex-col">
                 @if (Request.Query.ContainsKey("id"))
                 {
-                    @if (Model.ExpenseDescriptionChartData.Any() && Model.ExpenseDescriptionChartData.Any(d => d.TotalAmount != 0))
-                    {
-                        <div class="bg-white p-6 rounded-lg shadow-md">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Витрати за описом</h3>
-                            <div class="chart-container">
-                                <canvas id="expenseDescriptionChart"></canvas>
+                    <div class="flex flex-col lg:flex-row gap-6 mb-4 flex-wrap justify-center">
+                        @if (Model.ExpenseDescriptionChartData.Any() && Model.ExpenseDescriptionChartData.Any(d => d.TotalAmount != 0))
+                        {
+                            <div class="bg-white p-6 rounded-lg shadow-md chart-wrapper w-full lg:w-auto" data-chart-type="expense">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Витрати за описом</h3>
+                                <div class="flex flex-row gap-4 justify-center md:flex-nowrap flex-wrap">
+                                    <div class="flex-1 min-w-[200px] max-w-[550px] h-[350px] relative overflow-hidden">
+                                        <canvas id="expensePieChart"></canvas>
+                                    </div>
+                                    <div class="flex-1 min-w-[200px] max-w-[550px] h-[350px] relative overflow-hidden">
+                                        <canvas id="expenseBarChart"></canvas>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    }
-                    @if (Model.IncomeDescriptionChartData.Any() && Model.IncomeDescriptionChartData.Any(d => d.TotalAmount != 0))
-                    {
-                        <div class="bg-white p-6 rounded-lg shadow-md">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Надходження за описом</h3>
-                            <div class="chart-container">
-                                <canvas id="incomeDescriptionChart"></canvas>
+                        }
+
+                        @if (Model.IncomeDescriptionChartData.Any() && Model.IncomeDescriptionChartData.Any(d => d.TotalAmount != 0))
+                        {
+                            <div class="bg-white p-6 rounded-lg shadow-md chart-wrapper w-full lg:w-auto" data-chart-type="income">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Надходження за описом</h3>
+                                <div class="flex flex-row gap-4 justify-center md:flex-nowrap flex-wrap">
+                                    <div class="flex-1 min-w-[200px] max-w-[550px] h-[350px] relative overflow-hidden">
+                                        <canvas id="incomePieChart"></canvas>
+                                    </div>
+                                    <div class="flex-1 min-w-[200px] max-w-[550px] h-[350px] relative overflow-hidden">
+                                        <canvas id="incomeBarChart"></canvas>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    }
+                        }
+                    </div>
+
                     @if (!Model.ExpenseDescriptionChartData.Any(d => d.TotalAmount != 0) && !Model.IncomeDescriptionChartData.Any(d => d.TotalAmount != 0))
                     {
                         <p class="text-gray-600">Дані для графіків за описом відсутні.</p>
@@ -155,34 +173,54 @@
                 }
                 else
                 {
-                    @if (Model.CategorySpending.Any() && Model.CategorySpending.Any(d => d.TotalAmount != 0))
-                    {
-                        <div class="bg-white p-6 rounded-lg shadow-md">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Витрати за базовими категоріями</h3>
-                            <div class="chart-container">
-                                <canvas id="expenseChart"></canvas>
+                    <div class="flex flex-col lg:flex-row gap-6 mb-4 flex-wrap justify-center">
+                        @if (Model.CategorySpending.Any() && Model.CategorySpending.Any(d => d.TotalAmount != 0))
+                        {
+                            <div class="bg-white p-6 rounded-lg shadow-md chart-wrapper w-full lg:w-auto" data-chart-type="expense">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Витрати за базовими категоріями</h3>
+                                <div class="chart-container">
+                                    <canvas id="expenseChart"></canvas>
+                                </div>
                             </div>
-                        </div>
-                    }
-                    else
-                    {
-                        <p class="text-gray-600">Дані для графіку витрат відсутні.</p>
-                    }
-                    @if (Model.IncomeByCategory.Any() && Model.IncomeByCategory.Any(d => d.TotalAmount != 0))
-                    {
-                        <div class="bg-white p-6 rounded-lg shadow-md">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Надходження за базовими категоріями</h3>
-                            <div class="chart-container">
-                                <canvas id="incomeChart"></canvas>
+                        }
+                        else
+                        {
+                            <p class="text-gray-600">Дані для графіку витрат відсутні.</p>
+                        }
+
+                        @if (Model.IncomeByCategory.Any() && Model.IncomeByCategory.Any(d => d.TotalAmount != 0))
+                        {
+                            <div class="bg-white p-6 rounded-lg shadow-md chart-wrapper w-full lg:w-auto" data-chart-type="income">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Надходження за базовими категоріями</h3>
+                                <div class="chart-container">
+                                    <canvas id="incomeChart"></canvas>
+                                </div>
                             </div>
-                        </div>
-                    }
-                    else
+                        }
+                        else
+                        {
+                            <p class="text-gray-600">Дані для графіку надходжень відсутні.</p>
+                        }
+                    </div>
+
+                    @if ((Model.CategorySpending.Any(d => d.TotalAmount != 0) || Model.IncomeByCategory.Any(d => d.TotalAmount != 0)))
                     {
-                        <p class="text-gray-600">Дані для графіку надходжень відсутні.</p>
+                        <div class="flex justify-center gap-4 mt-4">
+                            <button id="prevChart" class="bg-blue-600 text-white rounded-full w-10 h-10 flex items-center justify-center hover:bg-blue-700 transition" aria-label="Попередній графік">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                                </svg>
+                            </button>
+                            <button id="nextChart" class="bg-blue-600 text-white rounded-full w-10 h-10 flex items-center justify-center hover:bg-blue-700 transition" aria-label="Наступний графік">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
+                            </button>
+                        </div>
                     }
                 }
             </div>
+
 
             @if (Request.Query.ContainsKey("id"))
             {
@@ -437,12 +475,8 @@
         }
 
         function toggleEditCategoryModal() {
-            console.log('Toggling edit modal');
             const modal = document.getElementById('editCategoryModal');
-            if (!modal) {
-                console.error('Edit modal element not found');
-                return;
-            }
+            if (!modal) return;
             modal.classList.toggle('hidden');
             const content = modal.querySelector('.modal-content');
             if (content) {
@@ -450,41 +484,25 @@
                 content.classList.toggle('scale-100');
             }
             if (modal.classList.contains('hidden')) {
-                const nameInput = document.getElementById('EditCategoryName');
-                const idInput = document.getElementById('EditCategoryId');
-                if (nameInput) nameInput.value = '';
-                if (idInput) idInput.value = '';
-                const checkboxes = document.querySelectorAll('#editCategoryModal input[name="BaseCategoryIds"]');
-                checkboxes.forEach(cb => cb.checked = false);
+                document.getElementById('EditCategoryName').value = '';
+                document.getElementById('EditCategoryId').value = '';
+                document.querySelectorAll('#editCategoryModal input[name="BaseCategoryIds"]').forEach(cb => cb.checked = false);
             }
         }
 
         function openEditCategoryModal(categoryId, name, baseCategoryIds) {
-            console.log('Opening edit modal:', { categoryId, name, baseCategoryIds });
-            const idInput = document.getElementById('EditCategoryId');
-            const nameInput = document.getElementById('EditCategoryName');
-            if (!idInput || !nameInput) {
-                console.error('Edit modal inputs not found:', { idInput, nameInput });
-                return;
-            }
-            idInput.value = categoryId;
-            nameInput.value = name;
+            document.getElementById('EditCategoryId').value = categoryId;
+            document.getElementById('EditCategoryName').value = name;
             const idsArray = (baseCategoryIds || '').split(',').filter(id => id.trim());
-            console.log('Parsed baseCategoryIds:', idsArray);
-            const checkboxes = document.querySelectorAll('#editCategoryModal input[name="BaseCategoryIds"]');
-            checkboxes.forEach(cb => {
+            document.querySelectorAll('#editCategoryModal input[name="BaseCategoryIds"]').forEach(cb => {
                 cb.checked = idsArray.includes(cb.value);
             });
             toggleEditCategoryModal();
         }
 
         function toggleChangeCredentialsModal() {
-            console.log('Toggling change credentials modal');
             const modal = document.getElementById('changeCredentialsModal');
-            if (!modal) {
-                console.error('Change credentials modal not found');
-                return;
-            }
+            if (!modal) return;
             modal.classList.toggle('hidden');
             const content = modal.querySelector('.modal-content');
             if (content) {
@@ -492,10 +510,8 @@
                 content.classList.toggle('scale-100');
             }
             if (modal.classList.contains('hidden')) {
-                const form = document.getElementById('changeCredentialsForm');
-                if (form) form.reset();
-                const error = document.getElementById('changeCredentialsError');
-                if (error) error.textContent = '';
+                document.getElementById('changeCredentialsForm').reset();
+                document.getElementById('changeCredentialsError').textContent = '';
             }
         }
 
@@ -503,16 +519,12 @@
             event.preventDefault();
             const form = event.target;
             const formData = new FormData(form);
-            console.log('Submitting change credentials form:', Object.fromEntries(formData));
-
             try {
                 const response = await fetch(form.action, {
                     method: 'POST',
                     body: formData
                 });
-
                 if (response.redirected) {
-                    console.log('Redirecting to:', response.url);
                     toggleChangeCredentialsModal();
                     window.location.href = response.url;
                 } else {
@@ -525,10 +537,8 @@
                         localErrorElement.textContent = errorElement ? errorElement.textContent : 'Помилка при збереженні';
                         localErrorElement.classList.remove('hidden');
                     }
-                    console.log('Form submission failed, error displayed');
                 }
             } catch (error) {
-                console.error('Submission error:', error);
                 const localErrorElement = document.querySelector('#changeCredentialsError');
                 if (localErrorElement) {
                     localErrorElement.textContent = 'Помилка: ' + error.message;
@@ -539,146 +549,151 @@
 
         document.addEventListener('DOMContentLoaded', function () {
             const isCategorySelected = '@Request.Query.ContainsKey("id")' === 'True';
+            let currentChartType = 'pie';
+            const charts = {
+                expensePie: null,
+                expenseBar: null,
+                incomePie: null,
+                incomeBar: null,
+                expense: null,
+                income: null
+            };
 
-            if (isCategorySelected) {
-                const expenseDescLabels = @Html.Raw(Json.Serialize(Model.ExpenseDescriptionChartData.Select(t => t.Description)));
-                const expenseDescAmounts = @Html.Raw(Json.Serialize(Model.ExpenseDescriptionChartData.Select(t => t.TotalAmount)));
-                const expenseDescCtx = document.getElementById('expenseDescriptionChart');
-                if (expenseDescCtx && expenseDescAmounts.some(amount => amount !== 0)) {
-                    new Chart(expenseDescCtx.getContext('2d'), {
-                        type: 'pie',
-                        data: {
-                            labels: expenseDescLabels,
-                            datasets: [{
-                                label: 'Витрати за описом',
-                                data: expenseDescAmounts,
-                                backgroundColor: ['#dc2626', '#14b8a6', '#7c3aed', '#eab308', '#16a34a', '#ea580c', '#2563eb', '#15803d', '#db2777', '#a855f7'],
-                                hoverOffset: 12
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { position: 'bottom' },
-                                tooltip: {
-                                    callbacks: {
-                                        label: function (tooltipItem) {
-                                            return tooltipItem.label + ': ' + tooltipItem.raw + ' грн';
-                                        }
+            function createChartConfig(type, labels, amounts, chartType) {
+                const isPie = chartType === 'pie';
+                const colors = type === 'expense' 
+                    ? ['#dc2626', '#14b8a6', '#7c3aed', '#eab308', '#16a34a', '#ea580c', '#2563eb', '#15803d', '#db2777', '#a855f7']
+                    : ['#2563eb', '#15803d', '#db2777', '#ea580c', '#16a34a', '#a855f7'];
+                const borderColors = type === 'expense'
+                    ? ['#b91c1c', '#0d9488', '#6b21a8', '#ca8a04', '#15803d', '#c2410c', '#1e40af', '#14532d', '#be185d', '#9333ea']
+                    : ['#1e40af', '#14532d', '#be185d', '#c2410c', '#15803d', '#9333ea'];
+                return {
+                    type: chartType,
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: type === 'expense' ? 'Витрати' : 'Надходження',
+                            data: amounts,
+                            backgroundColor: colors,
+                            borderColor: isPie ? undefined : borderColors,
+                            borderWidth: isPie ? 0 : 1,
+                            hoverOffset: isPie ? 12 : 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: isPie ? 'bottom' : 'top', display: isPie },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (tooltipItem) {
+                                        return tooltipItem.label + ': ' + tooltipItem.raw + ' грн';
                                     }
                                 }
                             }
+                        },
+                        scales: isPie ? {} : {
+                            y: {
+                                beginAtZero: true,
+                                title: { display: true, text: 'Сума (грн)' }
+                            },
+                            x: {
+                                title: { display: true, text: isCategorySelected ? 'Опис' : 'Категорія' }
+                            }
                         }
+                    }
+                };
+            }
+
+            function initializeCharts() {
+                console.log('Initializing charts, isCategorySelected:', isCategorySelected, 'currentChartType:', currentChartType);
+                Object.values(charts).forEach(chart => {
+                    if (chart) {
+                        chart.destroy();
+                    }
+                });
+                Object.keys(charts).forEach(key => charts[key] = null);
+
+                if (isCategorySelected) {
+                    const expenseDescLabels = @Html.Raw(Json.Serialize(Model.ExpenseDescriptionChartData.Select(t => t.Description)));
+                    const expenseDescAmounts = @Html.Raw(Json.Serialize(Model.ExpenseDescriptionChartData.Select(t => t.TotalAmount)));
+                    const expensePieCtx = document.getElementById('expensePieChart');
+                    const expenseBarCtx = document.getElementById('expenseBarChart');
+
+                    if (expensePieCtx && expenseDescAmounts.some(amount => amount !== 0)) {
+                        console.log('Creating expense pie chart');
+                        charts.expensePie = new Chart(expensePieCtx.getContext('2d'), createChartConfig('expense', expenseDescLabels, expenseDescAmounts, 'pie'));
+                        console.log('Creating expense bar chart');
+                        charts.expenseBar = new Chart(expenseBarCtx.getContext('2d'), createChartConfig('expense', expenseDescLabels, expenseDescAmounts, 'bar'));
+                    }
+
+                    const incomeDescLabels = @Html.Raw(Json.Serialize(Model.IncomeDescriptionChartData.Select(t => t.Description)));
+                    const incomeDescAmounts = @Html.Raw(Json.Serialize(Model.IncomeDescriptionChartData.Select(t => t.TotalAmount)));
+                    const incomePieCtx = document.getElementById('incomePieChart');
+                    const incomeBarCtx = document.getElementById('incomeBarChart');
+
+                    if (incomePieCtx && incomeDescAmounts.some(amount => amount !== 0)) {
+                        console.log('Creating income pie chart');
+                        charts.incomePie = new Chart(incomePieCtx.getContext('2d'), createChartConfig('income', incomeDescLabels, incomeDescAmounts, 'pie'));
+                        console.log('Creating income bar chart');
+                        charts.incomeBar = new Chart(incomeBarCtx.getContext('2d'), createChartConfig('income', incomeDescLabels, incomeDescAmounts, 'bar'));
+                    }
+                } else {
+                    const expenseLabels = @Html.Raw(Json.Serialize(Model.CategorySpending.Select(t => t.CategoryName)));
+                    const expenseAmounts = @Html.Raw(Json.Serialize(Model.CategorySpending.Select(t => t.TotalAmount)));
+                    const expenseCtx = document.getElementById('expenseChart');
+
+                    if (expenseCtx && expenseAmounts.some(amount => amount !== 0)) {
+                        console.log('Creating expense chart for categories');
+                        charts.expense = new Chart(expenseCtx.getContext('2d'), createChartConfig('expense', expenseLabels, expenseAmounts, currentChartType));
+                    }
+
+                    const incomeLabels = @Html.Raw(Json.Serialize(Model.IncomeByCategory.Select(t => t.CategoryName)));
+                    const incomeAmounts = @Html.Raw(Json.Serialize(Model.IncomeByCategory.Select(t => t.TotalAmount)));
+                    const incomeCtx = document.getElementById('incomeChart');
+
+                    if (incomeCtx && incomeAmounts.some(amount => amount !== 0)) {
+                        console.log('Creating income chart for categories');
+                        charts.income = new Chart(incomeCtx.getContext('2d'), createChartConfig('income', incomeLabels, incomeAmounts, currentChartType));
+                    }
+                }
+            }
+
+            function toggleChartType() {
+                console.log('Toggling chart type to:', currentChartType);
+                initializeCharts();
+            }
+
+            if (!isCategorySelected) {
+                const prevChartBtn = document.getElementById('prevChart');
+                const nextChartBtn = document.getElementById('nextChart');
+                if (prevChartBtn) {
+                    prevChartBtn.addEventListener('click', () => {
+                        currentChartType = currentChartType === 'bar' ? 'pie' : 'bar';
+                        console.log('Switching to chart type:', currentChartType);
+                        toggleChartType();
                     });
                 }
-
-                const incomeDescLabels = @Html.Raw(Json.Serialize(Model.IncomeDescriptionChartData.Select(t => t.Description)));
-                const incomeDescAmounts = @Html.Raw(Json.Serialize(Model.IncomeDescriptionChartData.Select(t => t.TotalAmount)));
-                const incomeDescCtx = document.getElementById('incomeDescriptionChart');
-                if (incomeDescCtx && incomeDescAmounts.some(amount => amount !== 0)) {
-                    new Chart(incomeDescCtx.getContext('2d'), {
-                        type: 'pie',
-                        data: {
-                            labels: incomeDescLabels,
-                            datasets: [{
-                                label: 'Надходження за описом',
-                                data: incomeDescAmounts,
-                                backgroundColor: ['#2563eb', '#15803d', '#db2777', '#ea580c', '#16a34a', '#a855f7'],
-                                hoverOffset: 12
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { position: 'bottom' },
-                                tooltip: {
-                                    callbacks: {
-                                        label: function (tooltipItem) {
-                                            return tooltipItem.label + ': ' + tooltipItem.raw + ' грн';
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-            } else {
-                const expenseLabels = @Html.Raw(Json.Serialize(Model.CategorySpending.Select(t => t.CategoryName)));
-                const expenseAmounts = @Html.Raw(Json.Serialize(Model.CategorySpending.Select(t => t.TotalAmount)));
-                const expenseCtx = document.getElementById('expenseChart');
-                if (expenseCtx && expenseAmounts.some(amount => amount !== 0)) {
-                    new Chart(expenseCtx.getContext('2d'), {
-                        type: 'pie',
-                        data: {
-                            labels: expenseLabels,
-                            datasets: [{
-                                label: 'Витрати',
-                                data: expenseAmounts,
-                                backgroundColor: ['#dc2626', '#14b8a6', '#7c3aed', '#eab308', '#16a34a', '#ea580c'],
-                                hoverOffset: 12
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { position: 'bottom' },
-                                tooltip: {
-                                    callbacks: {
-                                        label: function (tooltipItem) {
-                                            return tooltipItem.label + ': ' + tooltipItem.raw + ' грн';
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-
-                const incomeLabels = @Html.Raw(Json.Serialize(Model.IncomeByCategory.Select(t => t.CategoryName)));
-                const incomeAmounts = @Html.Raw(Json.Serialize(Model.IncomeByCategory.Select(t => t.TotalAmount)));
-                const incomeCtx = document.getElementById('incomeChart');
-                if (incomeCtx && incomeAmounts.some(amount => amount !== 0)) {
-                    new Chart(incomeCtx.getContext('2d'), {
-                        type: 'pie',
-                        data: {
-                            labels: incomeLabels,
-                            datasets: [{
-                                label: 'Надходження',
-                                data: incomeAmounts,
-                                backgroundColor: ['#2563eb', '#15803d', '#db2777', '#ea580c', '#16a34a', '#a855f7'],
-                                hoverOffset: 12
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { position: 'bottom' },
-                                tooltip: {
-                                    callbacks: {
-                                        label: function (tooltipItem) {
-                                            return tooltipItem.label + ': ' + tooltipItem.raw + ' грн';
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                if (nextChartBtn) {
+                    nextChartBtn.addEventListener('click', () => {
+                        currentChartType = currentChartType === 'pie' ? 'bar' : 'pie';
+                        console.log('Switching to chart type:', currentChartType);
+                        toggleChartType();
                     });
                 }
             }
+
+            initializeCharts();
         });
     </script>
-    @* Helper to get base category IDs *@
     @{
         string GetBaseCategoryIds(ExpenseTracker.API.CategoryDto category)
         {
             var baseCategoryIds = Model.Categories
-            .Where(c => c.IsBuiltIn && c.MccCodes.Any(mcc => category.MccCodes.Contains(mcc)))
-            .Select(c => c.Id.ToString())
-            .ToList();
+                .Where(c => c.IsBuiltIn && c.MccCodes.Any(mcc => category.MccCodes.Contains(mcc)))
+                .Select(c => c.Id.ToString())
+                .ToList();
             return string.Join(",", baseCategoryIds);
         }
     }
