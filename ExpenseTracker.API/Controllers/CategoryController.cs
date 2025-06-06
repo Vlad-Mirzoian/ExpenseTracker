@@ -36,21 +36,6 @@ namespace ExpenseTracker.API
             return Ok(categoryDtos);
         }
 
-        [HttpGet("built-in")]
-        public async Task<ActionResult<IEnumerable<CategoryDto>>> GetBuiltInCategories()
-        {
-            var categories = await _categoryRepository.GetAllAsync(null);
-            var categoryDtos = categories.Select(c => new CategoryDto
-            {
-                Id = c.Id,
-                Name = c.Name,
-                MccCodes = c.MccCodesArray,
-                IsBuiltIn = c.IsBuiltIn,
-                UserId = c.UserId
-            }).ToList();
-            return Ok(categoryDtos);
-        }
-
         [HttpGet("{id}")]
         public async Task<ActionResult<CategoryDto>> GetCategory(Guid id)
         {

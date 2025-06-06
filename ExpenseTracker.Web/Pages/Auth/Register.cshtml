@@ -1,17 +1,14 @@
 ﻿@page
 @model ExpenseTracker.Web.Pages.Auth.RegisterModel
-@{
-    ViewData["Title"] = "Реєстрація";
-}
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"]</title>
+    <title>Реєстрація</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
 
-<div class="min-h-screen flex items-center justify-center bg-gray-100 bg-cover bg-center" style="background-image: url('/img/background-image.jpg')">
+<div class="min-h-screen flex items-center justify-center bg-gray-100 bg-cover bg-center">
     <div class="bg-white bg-opacity-90 p-6 rounded-lg shadow-xl w-full max-w-md">
         <h2 class="text-2xl font-semibold text-gray-900 mb-6 text-center">Реєстрація</h2>
         <form method="post" class="space-y-4">
@@ -31,7 +28,7 @@
                 <input type="text" id="Token" name="Token" value="@Model.Token" class="mt-1 w-full border border-gray-300 rounded-md px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500" required aria-required="true" placeholder="Токен" title="Токен має бути від 10 до 50 символів" />
                 @Html.ValidationMessageFor(m => m.Token, "", new { @class = "text-red-600 text-sm mt-1" })
                 <div class="text-xs text-gray-500 mt-1">
-                    <a href="https://api.monobank.ua/index.html" target="_blank" class="block mt-4 text-center text-blue-600 hover:text-blue-700 hover:underline">Як його дізнатися?</a>
+                    <a href="https://api.monobank.ua/index.html" target="_blank" class="block mt-4 text-center text-blue-600 hover:text-blue-700 hover:underline">Дізнатися токен</a>
                 </div>
             </div>
             @if (!string.IsNullOrEmpty(Model.ErrorMessage))

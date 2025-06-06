@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ExpenseTracker.API
@@ -10,13 +11,16 @@ namespace ExpenseTracker.API
     {
         private readonly MonobankService _monobankService;
         private readonly IUserRepository _userRepository;
+        private readonly IDataProtector _protector;
 
         public MonobankController(
             MonobankService monobankService,
-            IUserRepository userRepository)
+            IUserRepository userRepository,
+            IDataProtectionProvider dataProtectionProvider)
         {
             _monobankService = monobankService;
             _userRepository = userRepository;
+            _protector = dataProtectionProvider.CreateProtector("MonobankApiTokenProtector");
         }
 
         [HttpGet("transactions/{userId}")]
@@ -34,11 +38,21 @@ namespace ExpenseTracker.API
                     return BadRequest("У пользователя отсутствует API-ключ Monobank.");
                 }
 
+                string decryptedToken;
+                try
+                {
+                    decryptedToken = _protector.Unprotect(user.Token);
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest("Ошибка при расшифровке токена.");
+                }
+
                 var now = DateTimeOffset.UtcNow;
                 var fromTimestamp = now.AddDays(-30).ToUnixTimeSeconds();
                 var toTimestamp = now.ToUnixTimeSeconds();
 
-                var transactions = await _monobankService.GetTransactionsAsync(user.Id, user.Token, fromTimestamp, toTimestamp);
+                var transactions = await _monobankService.GetTransactionsAsync(user.Id, decryptedToken, fromTimestamp, toTimestamp);
                 var transactionDtos = transactions.Select(t => new TransactionDto
                 {
                     Id = t.Id,

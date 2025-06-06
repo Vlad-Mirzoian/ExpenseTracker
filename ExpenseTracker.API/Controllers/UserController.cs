@@ -4,8 +4,8 @@ using System.Text;
 using ExpenseTracker.Data.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
-using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 
 namespace ExpenseTracker.API
 {
@@ -15,27 +15,13 @@ namespace ExpenseTracker.API
     {
         private readonly IUserRepository _userRepository;
         private readonly IConfiguration _config;
+        private readonly IDataProtector _protector;
 
-        public UserController(IUserRepository userRepository, IConfiguration config)
+        public UserController(IUserRepository userRepository, IConfiguration config, IDataProtectionProvider dataProtectionProvider)
         {
             _userRepository = userRepository;
             _config = config;
-        }
-        public class RegisterRequest
-        {
-            [Required(ErrorMessage = "Логін обов'язковий")]
-            [MinLength(4, ErrorMessage = "Логін повинен містити щонайменше 4 символи")]
-            public string Login { get; set; }
-
-            [Required(ErrorMessage = "Пароль обов'язковий")]
-            [MinLength(8, ErrorMessage = "Пароль повинен містити щонайменше 8 символів")]
-            public string Password { get; set; }
-            public string Token { get; set; }
-        }
-        public class LoginRequest
-        {
-            public string Login { get; set; }
-            public string Password { get; set; }
+            _protector = dataProtectionProvider.CreateProtector("MonobankApiTokenProtector");
         }
 
         [HttpPost("register")]
@@ -47,10 +33,12 @@ namespace ExpenseTracker.API
                 return BadRequest(new { message = "Користувач із таким логіном вже існує" });
             }
 
+            var encryptedToken = _protector.Protect(request.Token);
+
             var newUser = new User
             {
                 Login = request.Login,
-                Token = request.Token,
+                Token = encryptedToken,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password)
             };
 
@@ -143,32 +131,27 @@ namespace ExpenseTracker.API
                 return NotFound(new { message = "Користувача не знайдено" });
             }
 
-            // Verify current password
             if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
             {
                 return BadRequest(new { message = "Невірний поточний пароль" });
             }
 
-            // Validate: at least one field must be provided
             if (string.IsNullOrWhiteSpace(request.NewLogin) && string.IsNullOrWhiteSpace(request.NewPassword))
             {
                 return BadRequest(new { message = "Потрібно вказати новий логін або пароль" });
             }
 
-            // Validate password confirmation
             if (!string.IsNullOrWhiteSpace(request.NewPassword) && request.NewPassword != request.ConfirmNewPassword)
             {
                 return BadRequest(new { message = "Новий пароль і підтвердження не співпадають" });
             }
 
-            // Update credentials
             var success = await _userRepository.UpdateUserCredentialsAsync(Guid.Parse(userId), request.NewLogin, request.NewPassword);
             if (!success)
             {
                 return BadRequest(new { message = "Не вдалося оновити дані. Логін може бути вже зайнятий." });
             }
 
-            // Generate new JWT if login changed
             if (!string.IsNullOrWhiteSpace(request.NewLogin))
             {
                 var newToken = GenerateJwtToken(user);

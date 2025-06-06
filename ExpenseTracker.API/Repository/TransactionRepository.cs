@@ -25,24 +25,30 @@ namespace ExpenseTracker.API
                 .ToListAsync();
         }
 
-        public async Task<List<Transaction>> GetTransactionsByCategoriesAsync(Guid categoryId)
+        public async Task<List<Transaction>> GetTransactionsByCategoriesAsync(Guid categoryId, Guid userId)
         {
             var transactions = await _context.Transactions
                 .Include(t => t.Category)
-                .Include(t => t.TransactionCategories).ThenInclude(tc => tc.Category)
-                .Where(t => t.TransactionCategories.Any(tc => tc.CategoryId == categoryId))
+                .Include(t => t.TransactionCategories)
+                    .ThenInclude(tc => tc.Category)
+                .Where(t => t.UserId == userId && t.TransactionCategories.Any(tc => tc.CategoryId == categoryId))
                 .OrderByDescending(t => t.Date)
                 .ToListAsync();
             return transactions;
         }
 
-        public async Task<List<Transaction>> GetTransactionsByCategoriesAsync(Guid categoryId, int pageNumber, int pageSize)
+        public async Task<List<Transaction>> GetTransactionsByCategoriesAsync(Guid categoryId, Guid userId, int pageNumber, int pageSize)
         {
-            var transactions = await _context.Transactions
+            var query = _context.Transactions
+                .AsNoTracking()
                 .Include(t => t.Category)
-                .Include(t => t.TransactionCategories).ThenInclude(tc => tc.Category)
-                .Where(t => t.TransactionCategories.Any(tc => tc.CategoryId == categoryId))
-                .OrderByDescending(t => t.Date)
+                .Include(t => t.TransactionCategories)
+                    .ThenInclude(tc => tc.Category)
+                .Where(t => t.UserId == userId && t.TransactionCategories.Any(tc => tc.CategoryId == categoryId))
+                .OrderByDescending(t => t.Date);
+
+            var totalCount = await query.CountAsync();
+            var transactions = await query
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();

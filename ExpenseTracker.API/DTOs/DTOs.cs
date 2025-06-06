@@ -2,6 +2,22 @@
 
 namespace ExpenseTracker.API
 {
+    public class RegisterRequest
+    {
+        [Required(ErrorMessage = "Логін обов'язковий")]
+        [MinLength(4, ErrorMessage = "Логін повинен містити щонайменше 4 символи")]
+        public string Login { get; set; }
+
+        [Required(ErrorMessage = "Пароль обов'язковий")]
+        [MinLength(8, ErrorMessage = "Пароль повинен містити щонайменше 8 символів")]
+        public string Password { get; set; }
+        public string Token { get; set; }
+    }
+    public class LoginRequest
+    {
+        public string Login { get; set; }
+        public string Password { get; set; }
+    }
     public class CategoryDto
     {
         public Guid Id { get; set; }

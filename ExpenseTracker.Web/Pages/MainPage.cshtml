@@ -42,19 +42,54 @@
         .transaction-list, .category-list {
             clear: both;
         }
+
+        .sidebar {
+            overflow-y: auto;
+        }
+
+        body.no-scroll {
+            overflow: hidden;
+        }
+
+        .modal {
+            z-index: 30;
+            overflow-y: auto;
+        }
+
+        .navbar-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .navbar-left {
+            display: flex;
+            align-items: center;
+        }
+
+        @@media (max-width: 767px) {
+            .text-logo
+        {
+            display: none;
+        }
+
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-inter">
     <nav class="fixed top-0 left-0 right-0 bg-white shadow-md z-20">
         <div class="max-w-7xl mx-auto px-4">
-            <div class="flex justify-between items-center h-16">
-                <div class="text-xl font-bold text-gray-900">Трекер витрат</div>
-                <div class="flex items-center space-x-4">
-                    <button class="md:hidden text-gray-600 hover:text-gray-900 focus:outline-none" aria-label="Відкрити меню" onclick="toggleSidebar()">
+            <div class="navbar-container h-16">
+                <div class="navbar-left">
+                    <button class="md:hidden text-gray-600 hover:text-gray-900 focus:outline-none mr-4" aria-label="Відкрити меню" onclick="toggleSidebar()">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
                         </svg>
                     </button>
+                    <div class="text-xl font-bold text-gray-900 text-logo">Трекер витрат</div>
+                </div>
+                <div class="flex items-center">
                     <form method="post" action="?handler=Logout">
                         @Html.AntiForgeryToken()
                         <button type="submit" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 transition">Вийти</button>
@@ -91,7 +126,7 @@
                             <button type="submit" class="w-full text-left px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition">Усі</button>
                         </form>
                     </li>
-                    @foreach (var category in Model.Categories)
+                    @foreach (var category in Model.Categories.OrderByDescending(c => c.IsBuiltIn).ThenBy(c => c.Name))
                     {
                         <li class="flex items-center space-x-2">
                             <form method="get" action="/MainPage" class="flex-1">
@@ -102,15 +137,15 @@
                             @if (!category.IsBuiltIn)
                             {
                                 <div class="flex space-x-2">
-                                    <form method="post" action="?handler=DeleteCategory">
+                                    <form method="post" action="?handler=DeleteCategory" class="hidden">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="categoryId" value="@category.Id" />
-                                        <button type="submit" onclick="return confirm('Ви впевнені, що хочете видалити категорію &quot;@category.Name&quot;?')" class="text-red-600 hover:text-red-700 focus:outline-none" aria-label="Видалити категорію @category.Name">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                            </svg>
-                                        </button>
                                     </form>
+                                    <button onclick="openDeleteCategoryModal('@category.Id', '@Html.Raw(JavaScriptEncoder.Default.Encode(category.Name))')" class="text-red-600 hover:text-red-700 focus:outline-none" aria-label="Видалити категорію @category.Name">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                        </svg>
+                                    </button>
                                     <button onclick="openEditCategoryModal('@category.Id', '@Html.Raw(JavaScriptEncoder.Default.Encode(category.Name))', '@(GetBaseCategoryIds(category))')" class="text-blue-600 hover:text-blue-700 focus:outline-none" aria-label="Редагувати категорію @category.Name">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15.828H9v-2.828l8.586-8.586z"></path>
@@ -245,7 +280,23 @@
                                         <p class="text-gray-900 font-medium">@transaction.Description</p>
                                         <p class="text-gray-600">@transaction.Amount.ToString("F2") грн</p>
                                         <p class="text-gray-500 text-sm">@transaction.Date.ToString("dd.MM.yyyy")</p>
-                                        <p class="text-gray-500 text-sm">Категорії: @string.Join(", ", transaction.TransactionCategories.Select(tc => tc.CategoryName + (tc.IsBaseCategory ? " (Базова)" : "")))</p>
+                                        <p class="text-gray-500 text-sm">
+                                            Категорії:
+                                            @foreach (var tc in transaction.TransactionCategories)
+                                            {
+                                                <span class="block">
+                                                    @tc.CategoryName
+                                                    @if (tc.IsBaseCategory)
+                                                    {
+                                                        <span class="text-xs text-gray-600">(Базова)</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full ml-2">Користувацька</span>
+                                                    }
+                                                </span>
+                                            }
+                                        </p>
                                         <form method="post" action="?handler=UpdateTransactionCategory&pageNumber=@Model.PageNumber" class="mt-2">
                                             @Html.AntiForgeryToken()
                                             <input type="hidden" name="TransactionId" value="@transaction.Id" />
@@ -458,24 +509,65 @@
                     </form>
                 </div>
             </div>
+
+            <!-- Delete Category Modal -->
+            <div id="deleteCategoryModal" class="modal fixed inset-0 bg-black/50 flex items-center justify-center hidden z-30">
+                <div class="modal-content bg-white p-6 rounded-lg shadow-xl w-full max-w-md transform scale-95">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900">Видалити категорію</h3>
+                        <button onclick="toggleDeleteCategoryModal()" class="text-gray-600 hover:text-gray-900" aria-label="Закрити">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <form method="post" action="?handler=DeleteCategory" id="deleteCategoryForm">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" id="DeleteCategoryId" name="categoryId" />
+                        <p class="text-gray-700 mb-4">Ви впевнені, що хочете видалити категорію "<span id="DeleteCategoryName"></span>"? Цю дію неможливо скасувати.</p>
+                        @if (!string.IsNullOrEmpty(Model.CategoryDeleteError))
+                        {
+                            <p id="deleteCategoryError" class="text-red-600 text-sm mb-4">@Model.CategoryDeleteError</p>
+                        }
+                        else
+                        {
+                            <p id="deleteCategoryError" class="text-red-600 text-sm mb-4 hidden"></p>
+                        }
+                        <div class="flex space-x-3">
+                            <button type="submit" class="flex-1 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition">Видалити</button>
+                            <button type="button" onclick="toggleDeleteCategoryModal()" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 transition">Скасувати</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </main>
     </div>
 
     <script>
         function toggleSidebar() {
-            document.querySelector('.sidebar').classList.toggle('active');
+            const sidebar = document.querySelector('.sidebar');
+            const body = document.body;
+            sidebar.classList.toggle('active');
+            body.classList.toggle('no-scroll');
         }
 
         function toggleCreateCategoryModal() {
             const modal = document.getElementById('createCategoryModal');
+            const body = document.body;
             modal.classList.toggle('hidden');
             const content = modal.querySelector('.modal-content');
             content.classList.toggle('scale-95');
             content.classList.toggle('scale-100');
+            body.classList.toggle('no-scroll');
+            if (modal.classList.contains('hidden')) {
+                document.getElementById('CreateCategoryName').value = '';
+                document.querySelectorAll('#createCategoryModal input[name="BaseCategoryIds"]').forEach(cb => cb.checked = false);
+            }
         }
 
         function toggleEditCategoryModal() {
             const modal = document.getElementById('editCategoryModal');
+            const body = document.body;
             if (!modal) return;
             modal.classList.toggle('hidden');
             const content = modal.querySelector('.modal-content');
@@ -483,6 +575,7 @@
                 content.classList.toggle('scale-95');
                 content.classList.toggle('scale-100');
             }
+            body.classList.toggle('no-scroll');
             if (modal.classList.contains('hidden')) {
                 document.getElementById('EditCategoryName').value = '';
                 document.getElementById('EditCategoryId').value = '';
@@ -502,6 +595,7 @@
 
         function toggleChangeCredentialsModal() {
             const modal = document.getElementById('changeCredentialsModal');
+            const body = document.body;
             if (!modal) return;
             modal.classList.toggle('hidden');
             const content = modal.querySelector('.modal-content');
@@ -509,10 +603,33 @@
                 content.classList.toggle('scale-95');
                 content.classList.toggle('scale-100');
             }
+            body.classList.toggle('no-scroll');
             if (modal.classList.contains('hidden')) {
                 document.getElementById('changeCredentialsForm').reset();
                 document.getElementById('changeCredentialsError').textContent = '';
             }
+        }
+
+        function toggleDeleteCategoryModal() {
+            const modal = document.getElementById('deleteCategoryModal');
+            const body = document.body;
+            modal.classList.toggle('hidden');
+            const content = modal.querySelector('.modal-content');
+            content.classList.toggle('scale-95');
+            content.classList.toggle('scale-100');
+            body.classList.toggle('no-scroll');
+            if (modal.classList.contains('hidden')) {
+                document.getElementById('DeleteCategoryId').value = '';
+                document.getElementById('DeleteCategoryName').textContent = '';
+                const errorElement = document.getElementById('deleteCategoryError');
+                if (errorElement) errorElement.classList.add('hidden');
+            }
+        }
+
+        function openDeleteCategoryModal(categoryId, categoryName) {
+            document.getElementById('DeleteCategoryId').value = categoryId;
+            document.getElementById('DeleteCategoryName').textContent = categoryName;
+            toggleDeleteCategoryModal();
         }
 
         document.getElementById('changeCredentialsForm').addEventListener('submit', async function(event) {

@@ -144,7 +144,7 @@ namespace ExpenseTracker.Web.Pages
                     HasMoreTransactions = false;
                 }
 
-                var chartQuery = $"api/transaction/all-by-category/{id.Value}";
+                var chartQuery = $"api/transaction/category/{id.Value}?all=true";
                 var chartResponse = await client.GetAsync(chartQuery);
                 if (chartResponse.IsSuccessStatusCode)
                 {

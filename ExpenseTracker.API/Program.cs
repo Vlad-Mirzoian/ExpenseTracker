@@ -53,6 +53,8 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddDataProtection();
+
 var app = builder.Build();
 app.UseCors("AllowSpecific");
 

@@ -8,8 +8,8 @@ namespace ExpenseTracker.API
     public interface ITransactionRepository : IGenericRepository<Transaction>
     {
         Task<List<Transaction>> GetTransactionsByUserAndDateAsync(Guid userId, DateTime fromDate, DateTime toDate);
-        Task<List<Transaction>> GetTransactionsByCategoriesAsync(Guid categoryId);
-        Task<List<Transaction>> GetTransactionsByCategoriesAsync(Guid categoryId, int pageNumber, int pageSize);
+        Task<List<Transaction>> GetTransactionsByCategoriesAsync(Guid categoryId, Guid userId);
+        Task<List<Transaction>> GetTransactionsByCategoriesAsync(Guid categoryId, Guid userId, int pageNumber, int pageSize);
         Task RemoveTransactionCategoriesAsync(Guid categoryId, List<Guid> transactionIds);
         Task ReassignOrphanedTransactionsAsync(List<Guid> transactionIds, Guid defaultCategoryId);
         Task UpdateCategoryForTransactionsAsync(Guid categoryId, List<Guid> transactionIds);
