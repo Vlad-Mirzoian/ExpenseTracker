@@ -23,13 +23,20 @@ namespace ExpenseTracker.API
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<TransactionDto>>> GetTransactions()
+        public async Task<ActionResult<IEnumerable<TransactionDto>>> GetTransactions([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
         {
             var currentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
-            var fromDate = DateTime.UtcNow.AddMonths(-12); // Last 12 months
-            var toDate = DateTime.UtcNow;
 
-            var transactions = await _transactionRepository.GetTransactionsByUserAndDateAsync(currentUserId, fromDate, toDate);
+            fromDate ??= DateTime.UtcNow.AddMonths(-12);
+            toDate ??= DateTime.UtcNow;
+
+            if (fromDate > toDate)
+            {
+                return BadRequest("From date cannot be later than to date.");
+            }
+
+            var transactions = await _transactionRepository.GetTransactionsByUserAndDateAsync(currentUserId, fromDate.Value, toDate.Value);
+
             var transactionDtos = transactions.Select(t => new TransactionDto
             {
                 Id = t.Id,
@@ -105,12 +112,6 @@ namespace ExpenseTracker.API
             if (category != null && !category.IsBuiltIn)
             {
                 return BadRequest("Base category must be built-in.");
-            }
-
-            var validTransactionIds = await _transactionRepository.GetValidExpenseTransactionIdsAsync(request.TransactionIds);
-            if (validTransactionIds.Count != request.TransactionIds.Count)
-            {
-                return BadRequest("Some transaction IDs are invalid or not of type Expense.");
             }
 
             var currentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);

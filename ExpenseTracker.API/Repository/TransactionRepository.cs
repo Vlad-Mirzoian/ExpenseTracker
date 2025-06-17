@@ -58,48 +58,88 @@ namespace ExpenseTracker.API
         public async Task UpdateCategoryForTransactionsAsync(Guid categoryId, List<Guid> transactionIds)
         {
             if (transactionIds == null || !transactionIds.Any())
+            {
                 throw new ArgumentException("Transaction IDs list cannot be empty.", nameof(transactionIds));
+            }
 
             if (categoryId == Guid.Empty)
-                throw new ArgumentException("Category ID cannot be empty.", nameof(categoryId));
-
-            var categoryExists = await _context.Categories.AnyAsync(c => c.Id == categoryId);
-            if (!categoryExists)
-                throw new InvalidOperationException($"Category with ID {categoryId} does not exist.");
-
-            await _context.Transactions
-                .Where(t => transactionIds.Contains(t.Id) && t.TransactionType == "Expense")
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(t => t.CategoryId, categoryId)
-                    .SetProperty(t => t.IsManuallyCategorized, true));
-
-            await _context.TransactionCategories
-                .Where(tc => transactionIds.Contains(tc.TransactionId) && tc.IsBaseCategory)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(tc => tc.CategoryId, categoryId));
-
-            var relationships = await _context.CategoryRelationships
-                .Where(cr => cr.BaseCategoryId == categoryId)
-                .ToListAsync();
-
-            foreach (var transactionId in transactionIds)
             {
-                foreach (var rel in relationships)
+                throw new ArgumentException("Category ID cannot be empty.", nameof(categoryId));
+            }
+
+            var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var categoryExists = await _context.Categories.AnyAsync(c => c.Id == categoryId);
+                if (!categoryExists)
                 {
-                    var existing = await _context.TransactionCategories
-                        .AnyAsync(tc => tc.TransactionId == transactionId && tc.CategoryId == rel.CustomCategoryId);
-                    if (!existing)
+                    throw new InvalidOperationException($"Category with ID {categoryId} does not exist.");
+                }
+
+                await _context.TransactionCategories
+                    .Where(tc => transactionIds.Contains(tc.TransactionId) && tc.IsBaseCategory)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(tc => tc.CategoryId, categoryId));
+
+                await _context.Transactions
+                    .Where(t => transactionIds.Contains(t.Id))
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(t => t.CategoryId, categoryId));
+
+                var currentCustomCategories = await _context.TransactionCategories
+                    .Where(tc => transactionIds.Contains(tc.TransactionId) && !tc.IsBaseCategory)
+                    .Select(tc => new { tc.TransactionId, tc.CategoryId })
+                    .ToListAsync();
+
+                var validCustomCategoryIds = await _context.CategoryRelationships
+                    .Where(cr => cr.BaseCategoryId == categoryId)
+                    .Select(cr => cr.CustomCategoryId)
+                    .ToListAsync();
+
+                var customCategoriesToRemove = currentCustomCategories
+                    .Where(tc => !validCustomCategoryIds.Contains(tc.CategoryId))
+                    .ToList();
+
+                if (customCategoriesToRemove.Any())
+                {
+                    await _context.TransactionCategories
+                        .Where(tc => transactionIds.Contains(tc.TransactionId) &&
+                                     !tc.IsBaseCategory &&
+                                     !validCustomCategoryIds.Contains(tc.CategoryId))
+                        .ExecuteDeleteAsync();
+                }
+
+                var newMappings = new List<TransactionCategory>();
+                foreach (var transactionId in transactionIds)
+                {
+                    foreach (var customCategoryId in validCustomCategoryIds)
                     {
-                        await _context.TransactionCategories.AddAsync(new TransactionCategory
+                        var existing = currentCustomCategories
+                            .Any(tc => tc.TransactionId == transactionId && tc.CategoryId == customCategoryId);
+                        if (!existing)
                         {
-                            TransactionId = transactionId,
-                            CategoryId = rel.CustomCategoryId,
-                            IsBaseCategory = false
-                        });
+                            newMappings.Add(new TransactionCategory
+                            {
+                                TransactionId = transactionId,
+                                CategoryId = customCategoryId,
+                                IsBaseCategory = false
+                            });
+                        }
                     }
                 }
+
+                if (newMappings.Any())
+                {
+                    await _context.TransactionCategories.AddRangeAsync(newMappings);
+                }
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
             }
-            await _context.SaveChangesAsync();
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task RemoveTransactionCategoriesAsync(Guid categoryId, List<Guid> transactionIds)
@@ -174,17 +214,6 @@ namespace ExpenseTracker.API
                 }
             }
             await _context.SaveChangesAsync();
-        }
-
-        public async Task<List<Guid>> GetValidExpenseTransactionIdsAsync(List<Guid> transactionIds)
-        {
-            if (transactionIds == null || !transactionIds.Any())
-                return new List<Guid>();
-
-            return await _context.Transactions
-                .Where(t => transactionIds.Contains(t.Id) && t.TransactionType == "Expense")
-                .Select(t => t.Id)
-                .ToListAsync();
         }
 
         public async Task AddTransactionCategoriesAsync(List<TransactionCategory> transactionCategories)

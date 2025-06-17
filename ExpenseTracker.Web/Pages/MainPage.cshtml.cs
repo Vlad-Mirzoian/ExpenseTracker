@@ -81,6 +81,7 @@ namespace ExpenseTracker.Web.Pages
                 return Page();
             }
 
+            await UpdateDatabaseFromMonobankAsync(client);
             await LoadCategoriesAsync(client);
 
             if (!Categories.Any() && string.IsNullOrEmpty(ModelError))
@@ -297,15 +298,18 @@ namespace ExpenseTracker.Web.Pages
                 return;
             }
 
-            // Attempt to fetch transactions from Monobank API
             for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
                 try
                 {
-                    var response = await client.GetAsync($"api/monobank/transactions/{UserInformation.Id}");
+                    var response = await client.GetAsync("api/transaction");
                     if (response.IsSuccessStatusCode)
                     {
                         Transactions = await response.Content.ReadFromJsonAsync<List<TransactionDto>>() ?? new List<TransactionDto>();
+                        if (!Transactions.Any())
+                        {
+                            ModelError = "Транзакції відсутні в базі даних для користувача.";
+                        }
                         return;
                     }
                     else if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests && rateLimitRetries < maxRateLimitRetries)
@@ -318,10 +322,9 @@ namespace ExpenseTracker.Web.Pages
                     else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     {
                         Transactions = new List<TransactionDto>();
+                        ModelError = "Транзакції відсутні в базі даних для користувача.";
                         return;
                     }
-                    _logger.LogWarning("Failed to fetch transactions from Monobank API for user {UserId}: {StatusCode}, attempt {Attempt}", UserInformation.Id, response.StatusCode, attempt);
-                    var errorContent = await response.Content.ReadAsStringAsync();
                     await Task.Delay(500 * attempt);
                 }
                 catch (Exception ex)
@@ -330,42 +333,57 @@ namespace ExpenseTracker.Web.Pages
                 }
             }
 
-            rateLimitRetries = 0;
-            for (int dbAttempt = 1; dbAttempt <= maxRetries; dbAttempt++)
+            ModelError = "Помилка завантаження транзакцій з бази даних.";
+            Transactions = new List<TransactionDto>();
+        }
+
+        private async Task UpdateDatabaseFromMonobankAsync(HttpClient client)
+        {
+            const int maxRetries = 3;
+            const int maxRateLimitRetries = 5;
+            int rateLimitRetries = 0;
+
+            if (UserInformation.Id == Guid.Empty)
             {
-                try
+                return;
+            }
+
+            try
+            {
+                for (int attempt = 1; attempt <= maxRetries; attempt++)
                 {
-                    var fallbackResponse = await client.GetAsync("api/transaction");
-                    if (fallbackResponse.IsSuccessStatusCode)
+                    try
                     {
-                        Transactions = await fallbackResponse.Content.ReadFromJsonAsync<List<TransactionDto>>() ?? new List<TransactionDto>();
-                        if (!Transactions.Any())
+                        var response = await client.GetAsync($"api/monobank/transactions/{UserInformation.Id}");
+                        if (response.IsSuccessStatusCode)
                         {
-                            ModelError = "Транзакції відсутні в базі даних для користувача.";
+                            var transactions = await response.Content.ReadFromJsonAsync<List<TransactionDto>>() ?? new List<TransactionDto>();
+                            return;
                         }
-                        return;
+                        else if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests && rateLimitRetries < maxRateLimitRetries)
+                        {
+                            rateLimitRetries++;
+                            var retryAfter = response.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(120);
+                            await Task.Delay(retryAfter);
+                            continue;
+                        }
+                        else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                        {
+                            return;
+                        }
+                        var errorContent = await response.Content.ReadAsStringAsync();
+                        await Task.Delay(500 * attempt);
                     }
-                    else if (fallbackResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    catch (HttpRequestException ex)
                     {
-                        Transactions = new List<TransactionDto>();
-                        ModelError = "Транзакції відсутні в базі даних для користувача.";
-                        return;
+                        await Task.Delay(500 * attempt);
                     }
-                    else if (fallbackResponse.StatusCode == System.Net.HttpStatusCode.TooManyRequests && rateLimitRetries < maxRateLimitRetries)
-                    {
-                        rateLimitRetries++;
-                        var retryAfter = fallbackResponse.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(120);
-                        await Task.Delay(retryAfter);
-                        continue;
-                    }
-                    await Task.Delay(500 * dbAttempt);
-                }
-                catch (Exception ex)
-                {
-                    await Task.Delay(500 * dbAttempt);
                 }
             }
-            ModelError = "Помилка завантаження транзакцій з API або бази даних.";
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error syncing Monobank transactions to database for user {UserId}", UserInformation.Id);
+            }
         }
 
         public IActionResult OnPostLogout()
@@ -385,7 +403,6 @@ namespace ExpenseTracker.Web.Pages
             if (categoryId == Guid.Empty)
             {
                 ModelError = "Виберіть категорію.";
-                _logger.LogWarning("Empty category ID provided for transaction {TransactionId}", transactionId);
                 return RedirectToPage(new { id = Request.Query["id"], pageNumber = PageNumber });
             }
 
@@ -400,23 +417,19 @@ namespace ExpenseTracker.Web.Pages
 
             try
             {
-                _logger.LogInformation("Updating category for transaction {TransactionId} to {CategoryId}", transactionId, categoryId);
                 var response = await client.PostAsJsonAsync("api/transaction/update-category", request);
 
                 if (response.IsSuccessStatusCode)
                 {
-                    _logger.LogInformation("Successfully updated category for transaction {TransactionId}", transactionId);
                     return RedirectToPage(new { id = Request.Query["id"], pageNumber = PageNumber });
                 }
 
                 var errorContent = await response.Content.ReadAsStringAsync();
                 ModelError = $"Помилка оновлення категорії: {errorContent}";
-                _logger.LogWarning("Failed to update category for transaction {TransactionId}: {Error}", transactionId, errorContent);
             }
             catch (Exception ex)
             {
                 ModelError = $"Помилка: {ex.Message}";
-                _logger.LogError(ex, "Error updating transaction category for transaction {TransactionId}", transactionId);
             }
 
             return RedirectToPage(new { id = Request.Query["id"], pageNumber = PageNumber });

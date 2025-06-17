@@ -31,11 +31,11 @@ namespace ExpenseTracker.API
                 var user = await _userRepository.GetByIdAsync(userId);
                 if (user == null)
                 {
-                    return NotFound("Пользователь не найден.");
+                    return NotFound("Користувач не знайдений.");
                 }
                 if (string.IsNullOrEmpty(user.Token))
                 {
-                    return BadRequest("У пользователя отсутствует API-ключ Monobank.");
+                    return BadRequest("У користувача відсутній API-ключ Monobank.");
                 }
 
                 string decryptedToken;
@@ -45,9 +45,8 @@ namespace ExpenseTracker.API
                 }
                 catch (Exception ex)
                 {
-                    return BadRequest("Ошибка при расшифровке токена.");
+                    return BadRequest("Помилка під час розшифрування токена.");
                 }
-
                 var now = DateTimeOffset.UtcNow;
                 var fromTimestamp = now.AddDays(-30).ToUnixTimeSeconds();
                 var toTimestamp = now.ToUnixTimeSeconds();
@@ -76,7 +75,7 @@ namespace ExpenseTracker.API
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Ошибка при получении транзакций: {ex.Message}");
+                return StatusCode(500, $"Помилка під час отримання транзакцій: {ex.Message}");
             }
         }
     }

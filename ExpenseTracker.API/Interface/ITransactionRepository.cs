@@ -14,7 +14,6 @@ namespace ExpenseTracker.API
         Task ReassignOrphanedTransactionsAsync(List<Guid> transactionIds, Guid defaultCategoryId);
         Task UpdateCategoryForTransactionsAsync(Guid categoryId, List<Guid> transactionIds);
         Task AddRangeAsync(IEnumerable<Transaction> transactions);
-        Task<List<Guid>> GetValidExpenseTransactionIdsAsync(List<Guid> transactionIds);
         Task AddTransactionCategoriesAsync(List<TransactionCategory> transactionCategories);
     }
 }
